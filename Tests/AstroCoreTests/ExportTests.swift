@@ -42,7 +42,7 @@ struct ExportTests {
         #expect(export.vargas.count == 16)
         #expect(export.dashas?.count == 9)
         #expect(export.currentDasha != nil)
-        #expect(export.metadata.engineVersion == "0.3")
+        #expect(export.metadata.engineVersion == "0.5")
         #expect(export.metadata.ayanamsa == "Lahiri")
     }
 

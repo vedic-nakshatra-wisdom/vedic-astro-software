@@ -11,6 +11,8 @@ public struct ChartExporter: Sendable {
         vargas: [VargaChart] = [],
         dashas: [DashaPeriod]? = nil,
         ashtakavarga: AshtakavargaResult? = nil,
+        karakas: CharaKarakaResult? = nil,
+        shadbala: ShadBalaResult? = nil,
         currentDate: Date = Date()
     ) -> ChartExport {
         let vargaExports = vargas.map { VargaExport(from: $0) }
@@ -31,7 +33,7 @@ public struct ChartExporter: Sendable {
 
         let metadata = ChartExport.ExportMetadata(
             exportDate: currentDate,
-            engineVersion: "0.3",
+            engineVersion: "0.5",
             ayanamsa: chart.ayanamsaType.rawValue,
             houseSystem: chart.houseSystem.rawValue,
             nodeType: chart.nodeType.rawValue
@@ -43,6 +45,8 @@ public struct ChartExporter: Sendable {
             dashas: dashas,
             currentDasha: currentDasha,
             ashtakavarga: ashtakavarga,
+            karakas: karakas,
+            shadbala: shadbala,
             metadata: metadata
         )
     }
@@ -185,6 +189,38 @@ public struct ChartExporter: Sendable {
             }
             savRow += " | \(ashtakavarga.sarvashtakavarga.total) |\n"
             md += savRow
+            md += "\n"
+        }
+
+        // Jaimini Chara Karakas
+        if let karakas = export.karakas {
+            let system = karakas.isEightKaraka ? "8-Karaka" : "7-Karaka"
+            md += "## Jaimini Chara Karakas (\(system) System)\n\n"
+            md += "| Karaka | Abbreviation | Planet | Degree |\n"
+            md += "|--------|--------------|--------|--------|\n"
+            for entry in karakas.ranking {
+                let deg = String(format: "%.2f", entry.degreeInSign)
+                md += "| \(entry.karaka.rawValue) | \(entry.karaka.abbreviation) | \(entry.planet.rawValue) | \(deg)\u{00B0} |\n"
+            }
+            md += "\n"
+        }
+
+        // Shadbala
+        if let shadbala = export.shadbala {
+            md += "## Shadbala (Six-fold Strength)\n\n"
+            md += "| Planet | Sthana | Dig | Kala | Total | Rupas |\n"
+            md += "|--------|--------|-----|------|-------|-------|\n"
+            let order: [Planet] = [.sun, .moon, .mars, .mercury, .jupiter, .venus, .saturn]
+            for planet in order {
+                if let b = shadbala.planetBala[planet] {
+                    let sthana = String(format: "%.1f", b.sthanaBala)
+                    let dig = String(format: "%.1f", b.digBala)
+                    let kala = String(format: "%.1f", b.kalaBala)
+                    let total = String(format: "%.1f", b.totalVirupas)
+                    let rupas = String(format: "%.2f", b.totalRupas)
+                    md += "| \(planet.rawValue) | \(sthana) | \(dig) | \(kala) | \(total) | \(rupas) |\n"
+                }
+            }
             md += "\n"
         }
 

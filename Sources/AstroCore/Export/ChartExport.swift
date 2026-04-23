@@ -13,6 +13,10 @@ public struct ChartExport: Codable, Sendable {
     public let currentDasha: CurrentDashaExport?
     /// Ashtakavarga results (BAV + SAV)
     public let ashtakavarga: AshtakavargaResult?
+    /// Jaimini Chara Karaka results
+    public let karakas: CharaKarakaResult?
+    /// Shadbala (six-fold planetary strength)
+    public let shadbala: ShadBalaResult?
     /// Export metadata
     public let metadata: ExportMetadata
 
