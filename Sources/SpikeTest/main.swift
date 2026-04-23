@@ -9,8 +9,8 @@ import CSwissEph
 
 // MARK: - Test Runner
 
-var passed = 0
-var failed = 0
+nonisolated(unsafe) var passed = 0
+nonisolated(unsafe) var failed = 0
 
 func assert(_ condition: Bool, _ message: String, file: String = #file, line: Int = #line) {
     if condition {

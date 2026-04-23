@@ -59,6 +59,42 @@ public actor EphemerisActor {
         return swe_get_ayanamsa_ut(julianDay)
     }
 
+    /// Result of a house calculation.
+    public struct HouseResult: Sendable {
+        /// 12 house cusp longitudes (sidereal degrees)
+        public let cusps: [Double]
+        /// Ascendant longitude (sidereal degrees)
+        public let ascendant: Double
+        /// Medium Coeli longitude (sidereal degrees)
+        public let mc: Double
+    }
+
+    /// Calculate house cusps and ascendant using swe_houses_ex.
+    /// - Parameters:
+    ///   - julianDay: Julian Day number in UT
+    ///   - latitude: Geographic latitude in degrees (North positive)
+    ///   - longitude: Geographic longitude in degrees (East positive)
+    ///   - houseSystem: House system character code as Int32 (e.g., 'W' for whole sign)
+    /// - Returns: HouseResult with cusps, ascendant, and MC, or nil on error
+    public func calcHouses(
+        julianDay: Double,
+        latitude: Double,
+        longitude: Double,
+        houseSystem: Int32
+    ) -> HouseResult? {
+        var cusps = [Double](repeating: 0, count: 13)
+        var ascmc = [Double](repeating: 0, count: 10)
+        let flags = SEFLG_SIDEREAL
+        let result = swe_houses_ex(julianDay, flags, latitude, longitude, Int32(houseSystem), &cusps, &ascmc)
+        guard result >= 0 else {
+            print("Swiss Ephemeris house calc error")
+            return nil
+        }
+        // cusps is 1-indexed: cusps[1] through cusps[12]
+        let houseCusps = Array(cusps[1...12])
+        return HouseResult(cusps: houseCusps, ascendant: ascmc[0], mc: ascmc[1])
+    }
+
     /// Close the Swiss Ephemeris and free resources.
     public func close() {
         swe_close()

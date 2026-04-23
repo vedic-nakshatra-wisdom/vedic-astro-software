@@ -1,15 +1,18 @@
-// swift-tools-version:5.9
+// swift-tools-version:6.0
 import PackageDescription
 
 let package = Package(
     name: "VedicAstro",
     platforms: [
-        .macOS(.v14),
-        .iOS(.v17),
+        .macOS(.v15),
+        .iOS(.v18),
     ],
     products: [
         .library(name: "AstroCore", targets: ["AstroCore"]),
         .executable(name: "SpikeTest", targets: ["SpikeTest"]),
+    ],
+    dependencies: [
+        .package(url: "https://github.com/swiftlang/swift-testing.git", exact: "6.1.0"),
     ],
     targets: [
         // Layer 0: Vendored Swiss Ephemeris C library
@@ -38,10 +41,13 @@ let package = Package(
             path: "Sources/SpikeTest"
         ),
 
-        // Tests (requires Xcode for XCTest)
+        // Tests
         .testTarget(
             name: "AstroCoreTests",
-            dependencies: ["AstroCore"],
+            dependencies: [
+                "AstroCore",
+                .product(name: "Testing", package: "swift-testing"),
+            ],
             resources: [
                 .copy("Resources"),
             ]
