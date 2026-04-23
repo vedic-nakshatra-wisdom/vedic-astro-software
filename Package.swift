@@ -10,6 +10,7 @@ let package = Package(
     products: [
         .library(name: "AstroCore", targets: ["AstroCore"]),
         .executable(name: "SpikeTest", targets: ["SpikeTest"]),
+        .executable(name: "VedicAstroApp", targets: ["AstroUI"]),
     ],
     dependencies: [
         .package(url: "https://github.com/swiftlang/swift-testing.git", exact: "6.1.0"),
@@ -39,6 +40,13 @@ let package = Package(
             name: "SpikeTest",
             dependencies: ["AstroCore"],
             path: "Sources/SpikeTest"
+        ),
+
+        // SwiftUI App
+        .executableTarget(
+            name: "AstroUI",
+            dependencies: ["AstroCore"],
+            path: "Sources/AstroUI"
         ),
 
         // Tests
