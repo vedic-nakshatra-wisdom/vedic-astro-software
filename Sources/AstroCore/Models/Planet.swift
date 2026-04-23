@@ -43,4 +43,19 @@ public enum Planet: String, Codable, Sendable, CaseIterable, Hashable {
 
     /// Planets used in Ashtakavarga (7 planets, no Rahu/Ketu)
     public static let ashtakavargaPlanets: [Planet] = signLords
+
+    /// Vimshottari Maha Dasha period in years (total cycle = 120 years)
+    public var vimshottariYears: Double {
+        switch self {
+        case .ketu:    return 7
+        case .venus:   return 20
+        case .sun:     return 6
+        case .moon:    return 10
+        case .mars:    return 7
+        case .rahu:    return 18
+        case .jupiter: return 16
+        case .saturn:  return 19
+        case .mercury: return 17
+        }
+    }
 }

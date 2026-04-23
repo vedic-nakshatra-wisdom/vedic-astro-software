@@ -87,4 +87,13 @@ public enum Nakshatra: Int, Codable, Sendable, CaseIterable, Hashable {
 
         return (Nakshatra(rawValue: nakIndex % 27)!, pada)
     }
+
+    /// Fraction of nakshatra elapsed (0.0 = start, 1.0 = end)
+    public static func fractionElapsed(at longitude: Double) -> Double {
+        let normalizedLon = longitude.truncatingRemainder(dividingBy: 360.0)
+        let lon = normalizedLon < 0 ? normalizedLon + 360.0 : normalizedLon
+        let nakIndex = Int(lon / span)
+        let posInNak = lon - Double(nakIndex) * span
+        return posInNak / span
+    }
 }

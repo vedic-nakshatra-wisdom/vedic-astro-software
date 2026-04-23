@@ -66,5 +66,20 @@ struct SwovenChartTest {
                 print("  House \(i + 1): \(sign.name) \(String(format: "%.2f", cusp))°")
             }
         }
+
+        // Print all 16 vargas
+        print("\n" + String(repeating: "=", count: 50))
+        print("SHODASHA VARGA (16 Divisional Charts)")
+        print(String(repeating: "=", count: 50))
+
+        let vargaCalc = VargaCalculator()
+        let allVargas = vargaCalc.computeAllVargas(from: chart)
+
+        for varga in VargaType.allCases {
+            if let vc = allVargas[varga] {
+                print("")
+                vc.printSummary()
+            }
+        }
     }
 }
