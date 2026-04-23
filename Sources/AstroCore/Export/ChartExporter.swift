@@ -10,6 +10,7 @@ public struct ChartExporter: Sendable {
         chart: BirthChart,
         vargas: [VargaChart] = [],
         dashas: [DashaPeriod]? = nil,
+        ashtakavarga: AshtakavargaResult? = nil,
         currentDate: Date = Date()
     ) -> ChartExport {
         let vargaExports = vargas.map { VargaExport(from: $0) }
@@ -41,6 +42,7 @@ public struct ChartExporter: Sendable {
             vargas: vargaExports,
             dashas: dashas,
             currentDasha: currentDasha,
+            ashtakavarga: ashtakavarga,
             metadata: metadata
         )
     }
@@ -143,6 +145,46 @@ public struct ChartExporter: Sendable {
                 row += " |"
                 md += row + "\n"
             }
+            md += "\n"
+        }
+
+        // Ashtakavarga
+        if let ashtakavarga = export.ashtakavarga {
+            md += "## Ashtakavarga\n\n"
+
+            let signs: [Sign] = Sign.allCases
+            let signHeaders = signs.map { $0.shortName }
+
+            // Header row
+            var header = "| Planet"
+            for s in signHeaders { header += " | \(s)" }
+            header += " | Total |\n"
+            md += header
+
+            var separator = "|--------"
+            for _ in signs { separator += "|----" }
+            separator += "|-------|\n"
+            md += separator
+
+            let planetOrder: [Planet] = [.sun, .moon, .mars, .mercury, .jupiter, .venus, .saturn]
+            for planet in planetOrder {
+                if let bav = ashtakavarga.bpiBindus[planet] {
+                    var row = "| \(planet.rawValue)"
+                    for b in bav.bindus {
+                        row += " | \(b)"
+                    }
+                    row += " | \(bav.total) |\n"
+                    md += row
+                }
+            }
+
+            // SAV row
+            var savRow = "| **SAV**"
+            for b in ashtakavarga.sarvashtakavarga.bindus {
+                savRow += " | \(b)"
+            }
+            savRow += " | \(ashtakavarga.sarvashtakavarga.total) |\n"
+            md += savRow
             md += "\n"
         }
 

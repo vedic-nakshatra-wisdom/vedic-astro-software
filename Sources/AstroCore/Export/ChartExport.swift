@@ -11,6 +11,8 @@ public struct ChartExport: Codable, Sendable {
     public let dashas: [DashaPeriod]?
     /// Current dasha path at export time (if dashas computed)
     public let currentDasha: CurrentDashaExport?
+    /// Ashtakavarga results (BAV + SAV)
+    public let ashtakavarga: AshtakavargaResult?
     /// Export metadata
     public let metadata: ExportMetadata
 
