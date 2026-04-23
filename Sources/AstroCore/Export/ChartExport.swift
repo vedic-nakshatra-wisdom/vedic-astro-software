@@ -17,6 +17,12 @@ public struct ChartExport: Codable, Sendable {
     public let karakas: CharaKarakaResult?
     /// Shadbala (six-fold planetary strength)
     public let shadbala: ShadBalaResult?
+    /// Ishta Devta and Karakamsa
+    public let ishtaDevta: IshtaDevtaResult?
+    /// Arudha Lagnas (all 12 houses)
+    public let arudhaLagna: ArudhaLagnaResult?
+    /// Bhrigu Bindu (Moon-Rahu midpoint)
+    public let bhriguBindu: BhriguBinduResult?
     /// Export metadata
     public let metadata: ExportMetadata
 

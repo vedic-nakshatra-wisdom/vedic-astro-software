@@ -13,6 +13,9 @@ public struct ChartExporter: Sendable {
         ashtakavarga: AshtakavargaResult? = nil,
         karakas: CharaKarakaResult? = nil,
         shadbala: ShadBalaResult? = nil,
+        ishtaDevta: IshtaDevtaResult? = nil,
+        arudhaLagna: ArudhaLagnaResult? = nil,
+        bhriguBindu: BhriguBinduResult? = nil,
         currentDate: Date = Date()
     ) -> ChartExport {
         let vargaExports = vargas.map { VargaExport(from: $0) }
@@ -47,6 +50,9 @@ public struct ChartExporter: Sendable {
             ashtakavarga: ashtakavarga,
             karakas: karakas,
             shadbala: shadbala,
+            ishtaDevta: ishtaDevta,
+            arudhaLagna: arudhaLagna,
+            bhriguBindu: bhriguBindu,
             metadata: metadata
         )
     }
@@ -220,6 +226,62 @@ public struct ChartExporter: Sendable {
                     let rupas = String(format: "%.2f", b.totalRupas)
                     md += "| \(planet.rawValue) | \(sthana) | \(dig) | \(kala) | \(total) | \(rupas) |\n"
                 }
+            }
+            md += "\n"
+        }
+
+        // Karakamsa & Ishta Devta
+        if let ishta = export.ishtaDevta {
+            md += "## Karakamsa & Ishta Devta\n\n"
+            md += "- **Atmakaraka:** \(ishta.atmakaraka.rawValue)\n"
+            md += "- **Karakamsa (AK in D9):** \(ishta.karakamsa.karakamsaSign.name)\n"
+            if let h = ishta.karakamsa.houseFromLagna {
+                md += "- **Karakamsa House (from Lagna):** H\(h)\n"
+            }
+            if !ishta.karakamsa.planetsInKarakamsa.isEmpty {
+                let names = ishta.karakamsa.planetsInKarakamsa.map { $0.rawValue }.joined(separator: ", ")
+                md += "- **Planets in Karakamsa:** \(names)\n"
+            }
+            md += "- **12th from Karakamsa:** \(ishta.twelfthSign.name)\n"
+            if !ishta.planetsInTwelfth.isEmpty {
+                let names = ishta.planetsInTwelfth.map { $0.rawValue }.joined(separator: ", ")
+                md += "- **Planets in 12th:** \(names)\n"
+            }
+            md += "- **Significator:** \(ishta.significator.rawValue)\n"
+            md += "- **Ishta Devta:** \(ishta.deity.rawValue)\n"
+            md += "\n"
+        }
+
+        // Arudha Lagnas
+        if let arudha = export.arudhaLagna {
+            md += "## Arudha Lagnas\n\n"
+            md += "| House | Arudha | Label |\n"
+            md += "|-------|--------|-------|\n"
+            let labels = [
+                1: "AL (Pada Lagna)", 2: "A2 (Dhana)", 3: "A3",
+                4: "A4 (Matri)", 5: "A5 (Mantra)", 6: "A6 (Roga)",
+                7: "A7 (Dara)", 8: "A8 (Mrityu)", 9: "A9 (Dharma)",
+                10: "A10 (Rajya)", 11: "A11 (Labha)", 12: "UL (Upapada)"
+            ]
+            for house in 1...12 {
+                if let sign = arudha.arudha(ofHouse: house) {
+                    let label = labels[house] ?? "A\(house)"
+                    md += "| H\(house) | \(sign.name) | \(label) |\n"
+                }
+            }
+            md += "\n"
+        }
+
+        // Bhrigu Bindu
+        if let bb = export.bhriguBindu {
+            md += "## Bhrigu Bindu\n\n"
+            md += "- **Position:** \(bb.formattedPosition)\n"
+            md += "- **Nakshatra:** \(bb.nakshatra.name) (Pada \(bb.pada))\n"
+            if let h = bb.house {
+                md += "- **House:** H\(h)\n"
+            }
+            if let sav = bb.savScore {
+                md += "- **SAV Score:** \(sav)\n"
             }
             md += "\n"
         }
