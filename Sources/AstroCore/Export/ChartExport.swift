@@ -161,7 +161,13 @@ public struct IshtaDevtaExport: Codable, Sendable {
     public let twelfthFromKarakamsa: String
     public let planetsInTwelfth: [String]
     public let significator: String
-    public let deity: String
+    public let deity: DeityExport
+
+    public struct DeityExport: Codable, Sendable {
+        public let primary: String
+        public let alternates: [String]
+        public let theme: String
+    }
 }
 
 public struct SpecialPointsExport: Codable, Sendable {

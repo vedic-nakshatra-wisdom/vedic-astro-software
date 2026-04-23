@@ -35,33 +35,73 @@ public struct IshtaDevtaResult: Codable, Sendable {
     /// The indicated deity
     public let deity: Deity
 
-    /// Vedic deities associated with planetary significators
-    public enum Deity: String, Codable, Sendable {
-        case shiva = "Lord Shiva"
-        case parvati = "Goddess Parvati/Durga"
-        case skanda = "Lord Skanda/Kartikeya"
-        case vishnu = "Lord Vishnu"
-        case lakshmi = "Goddess Lakshmi"
-        case ganesha = "Lord Ganesha"
-        case narasimha = "Lord Narasimha"
-        case rama = "Lord Rama"
-        case krishna = "Lord Krishna"
-        case hanuman = "Lord Hanuman"
-        case surya = "Lord Surya"
-        case chamundi = "Goddess Chamundi"
+    /// Vedic deities associated with planetary significators.
+    /// Each planet maps to a primary deity with alternates from various Jaimini traditions.
+    public struct Deity: Codable, Sendable, Equatable {
+        /// Primary deity name
+        public let primary: String
+        /// Alternative deities from different traditions
+        public let alternates: [String]
+        /// Devotional theme this planet represents
+        public let theme: String
 
-        /// Map a planet to its primary deity per Jaimini tradition
+        /// Map a planet to its deity per Jaimini tradition
         public static func from(planet: Planet) -> Deity {
             switch planet {
-            case .sun:     return .shiva
-            case .moon:    return .parvati
-            case .mars:    return .skanda
-            case .mercury: return .vishnu
-            case .jupiter: return .narasimha
-            case .venus:   return .lakshmi
-            case .saturn:  return .hanuman
-            case .rahu:    return .chamundi
-            case .ketu:    return .ganesha
+            case .sun:
+                return Deity(
+                    primary: "Lord Rama",
+                    alternates: ["Lord Shiva", "Surya Narayana"],
+                    theme: "Dharma, soul, and royal devotion"
+                )
+            case .moon:
+                return Deity(
+                    primary: "Lord Krishna",
+                    alternates: ["Goddess Parvati", "Goddess Gauri"],
+                    theme: "Devotion through love, emotion, and the divine mother"
+                )
+            case .mars:
+                return Deity(
+                    primary: "Lord Hanuman",
+                    alternates: ["Lord Subramanya/Kartikeya/Murugan", "Lord Narasimha"],
+                    theme: "Courage, protection, and warrior devotion"
+                )
+            case .mercury:
+                return Deity(
+                    primary: "Lord Vishnu (Vitthala)",
+                    alternates: ["Lord Krishna (cowherd form)"],
+                    theme: "Intellect, communication, and playful devotion"
+                )
+            case .jupiter:
+                return Deity(
+                    primary: "Lord Vishnu",
+                    alternates: ["Lord Vamana", "Sri Hari", "Lord Dattatreya"],
+                    theme: "Wisdom, dharma, and guru-bhakti"
+                )
+            case .venus:
+                return Deity(
+                    primary: "Goddess Lakshmi",
+                    alternates: ["Lord Parashurama", "Goddess Gauri"],
+                    theme: "Devotion through beauty, love, and abundance"
+                )
+            case .saturn:
+                return Deity(
+                    primary: "Lord Shiva (Bhairava)",
+                    alternates: ["Lord Hanuman", "Lord Kurma"],
+                    theme: "Discipline, austerity, and shadow work"
+                )
+            case .rahu:
+                return Deity(
+                    primary: "Goddess Durga",
+                    alternates: ["Lord Varaha", "Goddess Chamunda"],
+                    theme: "Unconventional paths, tantric devotion, and breaking illusion"
+                )
+            case .ketu:
+                return Deity(
+                    primary: "Lord Ganesha",
+                    alternates: ["Lord Matsya", "Lord Shiva (Dakshinamurti)"],
+                    theme: "Moksha, spiritual liberation, and detachment"
+                )
             }
         }
     }

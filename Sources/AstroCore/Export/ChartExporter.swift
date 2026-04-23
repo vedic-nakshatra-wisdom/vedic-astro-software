@@ -136,7 +136,11 @@ public struct ChartExporter: Sendable {
                     twelfthFromKarakamsa: ishta.twelfthSign.name,
                     planetsInTwelfth: ishta.planetsInTwelfth.map { $0.rawValue },
                     significator: ishta.significator.rawValue,
-                    deity: ishta.deity.rawValue
+                    deity: IshtaDevtaExport.DeityExport(
+                        primary: ishta.deity.primary,
+                        alternates: ishta.deity.alternates,
+                        theme: ishta.deity.theme
+                    )
                 )
             } else {
                 ishtaExport = nil
@@ -336,7 +340,11 @@ public struct ChartExporter: Sendable {
                     md += "- **Planets in 12th:** \(ishta.planetsInTwelfth.joined(separator: ", "))\n"
                 }
                 md += "- **Significator:** \(ishta.significator)\n"
-                md += "- **Ishta Devta:** \(ishta.deity)\n"
+                md += "- **Ishta Devta:** \(ishta.deity.primary)\n"
+                if !ishta.deity.alternates.isEmpty {
+                    md += "- **Alternates:** \(ishta.deity.alternates.joined(separator: ", "))\n"
+                }
+                md += "- **Theme:** \(ishta.deity.theme)\n"
                 md += "\n"
             }
 

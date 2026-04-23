@@ -138,8 +138,12 @@ public enum ChartSchemaProvider {
           },
           "ishtaDevta": {
             "_note": "12th sign from Karakamsa checked in D1. Occupant planet → deity. If empty → sign lord → deity.",
-            "deity": "string — indicated deity (e.g. 'Goddess Lakshmi')",
-            "significator": "string — planet determining the deity"
+            "significator": "string — planet determining the deity",
+            "deity": {
+              "primary": "string — primary deity (e.g. 'Goddess Lakshmi')",
+              "alternates": "array of strings — alternative deities from different traditions",
+              "theme": "string — devotional theme this planet represents"
+            }
           },
           "arudhaLagnas": {
             "_note": "12 Arudha Padas. Key = house number (1-12). Value = sign name. Key padas: 1=AL (Pada Lagna), 7=Darapada, 12=UL (Upapada)."

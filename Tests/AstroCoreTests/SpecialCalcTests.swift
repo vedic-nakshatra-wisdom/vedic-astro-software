@@ -64,7 +64,7 @@ struct SpecialCalcTests {
         // Verify all planet-deity mappings are defined
         for planet in Planet.allCases {
             let deity = IshtaDevtaResult.Deity.from(planet: planet)
-            #expect(!deity.rawValue.isEmpty)
+            #expect(!deity.primary.isEmpty)
         }
     }
 
@@ -229,7 +229,7 @@ struct SpecialCalcTests {
             print("Planets in 12th: \(ishta.planetsInTwelfth.map { $0.rawValue }.joined(separator: ", "))")
         }
         print("Significator: \(ishta.significator.rawValue)")
-        print("Ishta Devta: \(ishta.deity.rawValue)")
+        print("Ishta Devta: \(ishta.deity.primary)")
 
         print("\n=== ARUDHA LAGNAS ===")
         let labels = [
