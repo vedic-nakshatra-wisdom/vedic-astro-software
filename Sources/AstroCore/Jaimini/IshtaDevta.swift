@@ -2,10 +2,10 @@ import Foundation
 
 /// Ishta Devta (chosen deity) calculation per Jaimini system.
 ///
-/// Method: Find the Atmakaraka's sign in Navamsa (D9).
-/// The 12th house from that sign indicates the Ishta Devta.
-/// If a planet occupies that 12th sign, it indicates the deity.
-/// If empty, the lord of that sign indicates the deity.
+/// Method: Find the Atmakaraka's sign in Navamsa (D9) = Karakamsa.
+/// Compute the 12th sign from Karakamsa. Check the D1 (rasi) chart
+/// for planets occupying that 12th sign. If a planet is there, it
+/// indicates the deity. If empty, the lord of that sign indicates the deity.
 /// Karakamsa — the Navamsa sign of the Atmakaraka.
 /// Foundation for Ishta Devta, Swamsa analysis, and Jaimini predictions.
 public struct KarakamsaResult: Codable, Sendable {
@@ -119,10 +119,11 @@ public struct IshtaDevtaCalculator: Sendable {
         let twelfthIndex = (navamsaSignIndex + 11) % 12
         let twelfthSign = Sign(rawValue: twelfthIndex)!
 
-        // Find planets in that 12th Navamsa sign
+        // Find planets in the 12th sign in the D1 (rasi) chart
         var planetsInTwelfth: [Planet] = []
         for planet in Planet.allCases {
-            if let idx = navamsaPlacements[planet], idx == twelfthIndex {
+            guard let pos = chart.position(of: planet) else { continue }
+            if pos.signIndex == twelfthIndex {
                 planetsInTwelfth.append(planet)
             }
         }
