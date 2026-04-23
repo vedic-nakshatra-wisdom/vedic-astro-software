@@ -213,6 +213,13 @@ struct ChartInputView: View {
         }
 
         try json.write(to: url, atomically: true, encoding: .utf8)
+
+        // Write schema file alongside the chart data
+        let schemaURL = url.deletingLastPathComponent()
+            .appendingPathComponent("chart_schema.json")
+        let schemaJSON = ChartSchemaProvider.schemaJSON
+        try schemaJSON.write(to: schemaURL, atomically: true, encoding: .utf8)
+
         return url.path
         #else
         // iOS: save to Documents
@@ -220,6 +227,10 @@ struct ChartInputView: View {
         let fileName = "\(name.replacingOccurrences(of: " ", with: "_"))_chart.json"
         let url = docs.appendingPathComponent(fileName)
         try json.write(to: url, atomically: true, encoding: .utf8)
+
+        let schemaURL = docs.appendingPathComponent("chart_schema.json")
+        try ChartSchemaProvider.schemaJSON.write(to: schemaURL, atomically: true, encoding: .utf8)
+
         return url.path
         #endif
     }

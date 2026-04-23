@@ -18,53 +18,169 @@ public struct ChartExporter: Sendable {
         bhriguBindu: BhriguBinduResult? = nil,
         currentDate: Date = Date()
     ) -> ChartExport {
-        let vargaExports = vargas.map { VargaExport(from: $0) }
 
-        var currentDasha: ChartExport.CurrentDashaExport? = nil
-        if let dashas = dashas {
-            let calc = VimshottariCalculator()
-            let path = calc.activeDashaPath(in: dashas, at: currentDate)
-            if !path.isEmpty {
-                currentDasha = ChartExport.CurrentDashaExport(
-                    date: currentDate,
-                    maha: path[0].planet.rawValue,
-                    antar: path.count > 1 ? path[1].planet.rawValue : nil,
-                    pratyantar: path.count > 2 ? path[2].planet.rawValue : nil
-                )
-            }
-        }
-
-        let metadata = ChartExport.ExportMetadata(
-            exportDate: currentDate,
+        // 1. Metadata
+        let metadata = ExportMetadata(
             engineVersion: "0.5",
+            exportDate: currentDate,
             ayanamsa: chart.ayanamsaType.rawValue,
+            ayanamsaValue: chart.ayanamsaValue,
             houseSystem: chart.houseSystem.rawValue,
             nodeType: chart.nodeType.rawValue
         )
 
+        // 2. Birth Data
+        let tzSeconds = chart.birthData.timeZoneOffset
+        let tzHours = tzSeconds / 3600.0
+        let tzSign = tzHours >= 0 ? "+" : ""
+        let birthDataExport = BirthDataExport(
+            name: chart.birthData.name,
+            dateTimeUTC: chart.birthData.dateTimeUTC,
+            timeZoneOffsetSeconds: tzSeconds,
+            timeZoneOffsetHours: "\(tzSign)\(String(format: "%.2f", tzHours))",
+            latitude: chart.birthData.latitude,
+            longitude: chart.birthData.longitude,
+            hasBirthTime: chart.birthData.hasBirthTime
+        )
+
+        // 3. Rasi Chart
+        let planetOrder: [Planet] = [.sun, .moon, .mars, .mercury, .jupiter, .venus, .saturn, .rahu, .ketu]
+        let planetExports: [PlanetExport] = planetOrder.compactMap { planet in
+            guard let pos = chart.planets[planet] else { return nil }
+            return PlanetExport(
+                planet: planet.rawValue,
+                sign: pos.sign.name,
+                longitude: pos.longitude,
+                degreeInSign: pos.formattedDegree,
+                nakshatra: pos.nakshatra.name,
+                pada: pos.nakshatraPada,
+                house: chart.house(of: planet),
+                isRetrograde: pos.isRetrograde
+            )
+        }
+
+        let ascExport: AscendantExport?
+        if let asc = chart.ascendant {
+            ascExport = AscendantExport(
+                sign: asc.sign.name,
+                degree: asc.formattedDegree,
+                longitude: asc.longitude,
+                nakshatra: asc.nakshatra.name,
+                pada: asc.nakshatraPada
+            )
+        } else {
+            ascExport = nil
+        }
+
+        let rasiChart = RasiChartExport(
+            ascendant: ascExport,
+            planets: planetExports,
+            houseCusps: chart.houseCusps
+        )
+
+        // 4. Divisional Charts — sorted by division number
+        let vargaExports = vargas
+            .map { VargaExport(from: $0) }
+            .sorted { $0.division < $1.division }
+
+        // 5. Vimshottari Dasha
+        let dashaExport: VimshottariDashaExport?
+        if let dashas = dashas {
+            let calc = VimshottariCalculator()
+            let path = calc.activeDashaPath(in: dashas, at: currentDate)
+
+            let current: VimshottariDashaExport.CurrentDashaExport?
+            if !path.isEmpty {
+                current = VimshottariDashaExport.CurrentDashaExport(
+                    asOf: currentDate,
+                    maha: path[0].planet.rawValue,
+                    antar: path.count > 1 ? path[1].planet.rawValue : nil,
+                    pratyantar: path.count > 2 ? path[2].planet.rawValue : nil
+                )
+            } else {
+                current = nil
+            }
+
+            let mahas = dashas.map { maha in
+                VimshottariDashaExport.MahaDashaExport(
+                    planet: maha.planet.rawValue,
+                    startDate: maha.startDate,
+                    endDate: maha.endDate,
+                    years: maha.durationDays / 365.25,
+                    antarDashas: maha.subPeriods.map { antar in
+                        VimshottariDashaExport.AntarDashaExport(
+                            planet: antar.planet.rawValue,
+                            startDate: antar.startDate,
+                            endDate: antar.endDate
+                        )
+                    }
+                )
+            }
+
+            dashaExport = VimshottariDashaExport(
+                currentDasha: current,
+                mahaDashas: mahas
+            )
+        } else {
+            dashaExport = nil
+        }
+
+        // 8. Jaimini
+        let jaiminiExport: JaiminiExport?
+        if karakas != nil || ishtaDevta != nil || arudhaLagna != nil {
+            let ishtaExport: IshtaDevtaExport?
+            if let ishta = ishtaDevta {
+                ishtaExport = IshtaDevtaExport(
+                    atmakaraka: ishta.atmakaraka.rawValue,
+                    karakamsaSign: ishta.karakamsa.karakamsaSign.name,
+                    twelfthFromKarakamsa: ishta.twelfthSign.name,
+                    planetsInTwelfth: ishta.planetsInTwelfth.map { $0.rawValue },
+                    significator: ishta.significator.rawValue,
+                    deity: ishta.deity.rawValue
+                )
+            } else {
+                ishtaExport = nil
+            }
+
+            jaiminiExport = JaiminiExport(
+                charaKarakas: karakas,
+                karakamsa: ishtaDevta?.karakamsa,
+                ishtaDevta: ishtaExport,
+                arudhaLagnas: arudhaLagna
+            )
+        } else {
+            jaiminiExport = nil
+        }
+
+        // 9. Special Points
+        let specialExport: SpecialPointsExport?
+        if bhriguBindu != nil {
+            specialExport = SpecialPointsExport(bhriguBindu: bhriguBindu)
+        } else {
+            specialExport = nil
+        }
+
         return ChartExport(
-            chart: chart,
-            vargas: vargaExports,
-            dashas: dashas,
-            currentDasha: currentDasha,
+            metadata: metadata,
+            birthData: birthDataExport,
+            rasiChart: rasiChart,
+            divisionalCharts: vargaExports,
+            vimshottariDasha: dashaExport,
             ashtakavarga: ashtakavarga,
-            karakas: karakas,
             shadbala: shadbala,
-            ishtaDevta: ishtaDevta,
-            arudhaLagna: arudhaLagna,
-            bhriguBindu: bhriguBindu,
-            metadata: metadata
+            jaimini: jaiminiExport,
+            specialPoints: specialExport
         )
     }
 
     // MARK: - JSON Export
 
-    /// Export to JSON string.
+    /// Export to JSON string. Field order follows struct declaration order.
     public func toJSON(_ export: ChartExport, prettyPrint: Bool = true) throws -> String {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         if prettyPrint {
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            encoder.outputFormatting = [.prettyPrinted]
         }
         let data = try encoder.encode(export)
         return String(data: data, encoding: .utf8)!
@@ -72,63 +188,56 @@ public struct ChartExporter: Sendable {
 
     // MARK: - Markdown Export
 
-    /// Export to Markdown string for Claude interpretation.
+    /// Export to Markdown string.
     public func toMarkdown(_ export: ChartExport) -> String {
         var md = ""
+        let isoFormatter = ISO8601DateFormatter()
 
-        // YAML frontmatter metadata
+        // YAML frontmatter
         md += "---\n"
         md += "engine: VedicAstro v\(export.metadata.engineVersion)\n"
         md += "ayanamsa: \(export.metadata.ayanamsa)\n"
         md += "house_system: \(export.metadata.houseSystem)\n"
         md += "node_type: \(export.metadata.nodeType)\n"
-        let isoFormatter = ISO8601DateFormatter()
         md += "exported: \(isoFormatter.string(from: export.metadata.exportDate))\n"
         md += "---\n\n"
 
         // Birth Data
-        let bd = export.chart.birthData
+        let bd = export.birthData
         md += "# Birth Chart: \(bd.name)\n\n"
 
         let df = DateFormatter()
         df.dateFormat = "yyyy-MM-dd HH:mm:ss"
         df.timeZone = TimeZone(identifier: "UTC")
         md += "- **Date/Time (UTC):** \(df.string(from: bd.dateTimeUTC))\n"
-        let tzHours = bd.timeZoneOffset / 3600.0
-        let tzSign = tzHours >= 0 ? "+" : ""
-        md += "- **Timezone Offset:** \(tzSign)\(String(format: "%.2f", tzHours)) hours\n"
+        md += "- **Timezone Offset:** \(bd.timeZoneOffsetHours) hours\n"
         md += "- **Location:** \(String(format: "%.4f", bd.latitude))\u{00B0}N, \(String(format: "%.4f", bd.longitude))\u{00B0}E\n"
-        md += "- **Ayanamsa:** \(export.chart.ayanamsaType.rawValue)"
-        md += " (\(String(format: "%.4f", export.chart.ayanamsaValue))\u{00B0})\n"
+        md += "- **Ayanamsa:** \(export.metadata.ayanamsa)"
+        md += " (\(String(format: "%.4f", export.metadata.ayanamsaValue))\u{00B0})\n"
         md += "\n"
 
-        // D1 Rasi Chart
+        // Rasi Chart
         md += "## Rasi Chart (D1)\n\n"
-        if let asc = export.chart.ascendant {
-            md += "**Lagna:** \(asc.sign.name) \(asc.formattedDegree)\n\n"
+        if let asc = export.rasiChart.ascendant {
+            md += "**Lagna:** \(asc.sign) \(asc.degree)\n\n"
         }
 
         md += "| Planet | Sign | Degree | Nakshatra | Pada | Retro | House |\n"
         md += "|--------|------|--------|-----------|------|-------|-------|\n"
-
-        let planetOrder: [Planet] = [.sun, .moon, .mars, .mercury, .jupiter, .venus, .saturn, .rahu, .ketu]
-        for planet in planetOrder {
-            if let pos = export.chart.planets[planet] {
-                let retro = pos.isRetrograde ? "R" : ""
-                let house = export.chart.house(of: planet).map { "H\($0)" } ?? "-"
-                md += "| \(planet.rawValue) | \(pos.sign.name) | \(pos.formattedDegree) | \(pos.nakshatra.name) | \(pos.nakshatraPada) | \(retro) | \(house) |\n"
-            }
+        for p in export.rasiChart.planets {
+            let retro = p.isRetrograde ? "R" : ""
+            let house = p.house.map { "H\($0)" } ?? "-"
+            md += "| \(p.planet) | \(p.sign) | \(p.degreeInSign) | \(p.nakshatra) | \(p.pada) | \(retro) | \(house) |\n"
         }
         md += "\n"
 
-        // Divisional Charts (compact table)
-        if !export.vargas.isEmpty {
+        // Divisional Charts
+        if !export.divisionalCharts.isEmpty {
             md += "## Divisional Charts (Shodasha Varga)\n\n"
 
-            // Build header
             var header = "| Planet"
             var separator = "|--------"
-            for varga in export.vargas {
+            for varga in export.divisionalCharts {
                 header += " | \(varga.shortName)"
                 separator += "|------"
             }
@@ -138,18 +247,17 @@ public struct ChartExporter: Sendable {
 
             // Lagna row
             var lagnaRow = "| **Lagna**"
-            for varga in export.vargas {
-                let sign = varga.ascendantSign ?? "-"
-                lagnaRow += " | \(abbreviateSign(sign))"
+            for varga in export.divisionalCharts {
+                lagnaRow += " | \(abbreviateSign(varga.ascendantSign ?? "-"))"
             }
             lagnaRow += " |"
             md += lagnaRow + "\n"
 
-            // Planet rows
-            for planet in planetOrder {
-                var row = "| \(planet.rawValue)"
-                for varga in export.vargas {
-                    let sign = varga.placements[planet.rawValue] ?? "-"
+            let planetOrder = ["Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn", "Rahu", "Ketu"]
+            for planetName in planetOrder {
+                var row = "| \(planetName)"
+                for varga in export.divisionalCharts {
+                    let sign = varga.placements.first(where: { $0.planet == planetName })?.sign ?? "-"
                     row += " | \(abbreviateSign(sign))"
                 }
                 row += " |"
@@ -165,7 +273,6 @@ public struct ChartExporter: Sendable {
             let signs: [Sign] = Sign.allCases
             let signHeaders = signs.map { $0.shortName }
 
-            // Header row
             var header = "| Planet"
             for s in signHeaders { header += " | \(s)" }
             header += " | Total |\n"
@@ -176,38 +283,20 @@ public struct ChartExporter: Sendable {
             separator += "|-------|\n"
             md += separator
 
-            let planetOrder: [Planet] = [.sun, .moon, .mars, .mercury, .jupiter, .venus, .saturn]
-            for planet in planetOrder {
+            let astvOrder: [Planet] = [.sun, .moon, .mars, .mercury, .jupiter, .venus, .saturn]
+            for planet in astvOrder {
                 if let bav = ashtakavarga.bpiBindus[planet] {
                     var row = "| \(planet.rawValue)"
-                    for b in bav.bindus {
-                        row += " | \(b)"
-                    }
+                    for b in bav.bindus { row += " | \(b)" }
                     row += " | \(bav.total) |\n"
                     md += row
                 }
             }
 
-            // SAV row
             var savRow = "| **SAV**"
-            for b in ashtakavarga.sarvashtakavarga.bindus {
-                savRow += " | \(b)"
-            }
+            for b in ashtakavarga.sarvashtakavarga.bindus { savRow += " | \(b)" }
             savRow += " | \(ashtakavarga.sarvashtakavarga.total) |\n"
             md += savRow
-            md += "\n"
-        }
-
-        // Jaimini Chara Karakas
-        if let karakas = export.karakas {
-            let system = karakas.isEightKaraka ? "8-Karaka" : "7-Karaka"
-            md += "## Jaimini Chara Karakas (\(system) System)\n\n"
-            md += "| Karaka | Abbreviation | Planet | Degree |\n"
-            md += "|--------|--------------|--------|--------|\n"
-            for entry in karakas.ranking {
-                let deg = String(format: "%.2f", entry.degreeInSign)
-                md += "| \(entry.karaka.rawValue) | \(entry.karaka.abbreviation) | \(entry.planet.rawValue) | \(deg)\u{00B0} |\n"
-            }
             md += "\n"
         }
 
@@ -219,86 +308,76 @@ public struct ChartExporter: Sendable {
             let order: [Planet] = [.sun, .moon, .mars, .mercury, .jupiter, .venus, .saturn]
             for planet in order {
                 if let b = shadbala.planetBala[planet] {
-                    let sthana = String(format: "%.1f", b.sthanaBala)
-                    let dig = String(format: "%.1f", b.digBala)
-                    let kala = String(format: "%.1f", b.kalaBala)
-                    let total = String(format: "%.1f", b.totalVirupas)
-                    let rupas = String(format: "%.2f", b.totalRupas)
-                    md += "| \(planet.rawValue) | \(sthana) | \(dig) | \(kala) | \(total) | \(rupas) |\n"
+                    md += "| \(planet.rawValue) | \(String(format: "%.1f", b.sthanaBala)) | \(String(format: "%.1f", b.digBala)) | \(String(format: "%.1f", b.kalaBala)) | \(String(format: "%.1f", b.totalVirupas)) | \(String(format: "%.2f", b.totalRupas)) |\n"
                 }
             }
             md += "\n"
         }
 
-        // Karakamsa & Ishta Devta
-        if let ishta = export.ishtaDevta {
-            md += "## Karakamsa & Ishta Devta\n\n"
-            md += "- **Atmakaraka:** \(ishta.atmakaraka.rawValue)\n"
-            md += "- **Karakamsa (AK in D9):** \(ishta.karakamsa.karakamsaSign.name)\n"
-            if let h = ishta.karakamsa.houseFromLagna {
-                md += "- **Karakamsa House (from Lagna):** H\(h)\n"
-            }
-            if !ishta.karakamsa.planetsInKarakamsa.isEmpty {
-                let names = ishta.karakamsa.planetsInKarakamsa.map { $0.rawValue }.joined(separator: ", ")
-                md += "- **Planets in Karakamsa:** \(names)\n"
-            }
-            md += "- **12th from Karakamsa:** \(ishta.twelfthSign.name)\n"
-            if !ishta.planetsInTwelfth.isEmpty {
-                let names = ishta.planetsInTwelfth.map { $0.rawValue }.joined(separator: ", ")
-                md += "- **Planets in 12th:** \(names)\n"
-            }
-            md += "- **Significator:** \(ishta.significator.rawValue)\n"
-            md += "- **Ishta Devta:** \(ishta.deity.rawValue)\n"
-            md += "\n"
-        }
-
-        // Arudha Lagnas
-        if let arudha = export.arudhaLagna {
-            md += "## Arudha Lagnas\n\n"
-            md += "| House | Arudha | Label |\n"
-            md += "|-------|--------|-------|\n"
-            let labels = [
-                1: "AL (Pada Lagna)", 2: "A2 (Dhana)", 3: "A3",
-                4: "A4 (Matri)", 5: "A5 (Mantra)", 6: "A6 (Roga)",
-                7: "A7 (Dara)", 8: "A8 (Mrityu)", 9: "A9 (Dharma)",
-                10: "A10 (Rajya)", 11: "A11 (Labha)", 12: "UL (Upapada)"
-            ]
-            for house in 1...12 {
-                if let sign = arudha.arudha(ofHouse: house) {
-                    let label = labels[house] ?? "A\(house)"
-                    md += "| H\(house) | \(sign.name) | \(label) |\n"
+        // Jaimini
+        if let jaimini = export.jaimini {
+            if let karakas = jaimini.charaKarakas {
+                let system = karakas.isEightKaraka ? "8-Karaka" : "7-Karaka"
+                md += "## Jaimini Chara Karakas (\(system) System)\n\n"
+                md += "| Karaka | Abbreviation | Planet | Degree |\n"
+                md += "|--------|--------------|--------|--------|\n"
+                for entry in karakas.ranking {
+                    md += "| \(entry.karaka.rawValue) | \(entry.karaka.abbreviation) | \(entry.planet.rawValue) | \(String(format: "%.2f", entry.degreeInSign))\u{00B0} |\n"
                 }
+                md += "\n"
             }
-            md += "\n"
+
+            if let ishta = jaimini.ishtaDevta {
+                md += "## Karakamsa & Ishta Devta\n\n"
+                md += "- **Atmakaraka:** \(ishta.atmakaraka)\n"
+                md += "- **Karakamsa (AK in D9):** \(ishta.karakamsaSign)\n"
+                md += "- **12th from Karakamsa:** \(ishta.twelfthFromKarakamsa)\n"
+                if !ishta.planetsInTwelfth.isEmpty {
+                    md += "- **Planets in 12th:** \(ishta.planetsInTwelfth.joined(separator: ", "))\n"
+                }
+                md += "- **Significator:** \(ishta.significator)\n"
+                md += "- **Ishta Devta:** \(ishta.deity)\n"
+                md += "\n"
+            }
+
+            if let arudha = jaimini.arudhaLagnas {
+                md += "## Arudha Lagnas\n\n"
+                md += "| House | Arudha | Label |\n"
+                md += "|-------|--------|-------|\n"
+                let labels = [
+                    1: "AL (Pada Lagna)", 2: "A2 (Dhana)", 3: "A3",
+                    4: "A4 (Matri)", 5: "A5 (Mantra)", 6: "A6 (Roga)",
+                    7: "A7 (Dara)", 8: "A8 (Mrityu)", 9: "A9 (Dharma)",
+                    10: "A10 (Rajya)", 11: "A11 (Labha)", 12: "UL (Upapada)"
+                ]
+                for house in 1...12 {
+                    if let sign = arudha.arudha(ofHouse: house) {
+                        md += "| H\(house) | \(sign.name) | \(labels[house] ?? "A\(house)") |\n"
+                    }
+                }
+                md += "\n"
+            }
         }
 
-        // Bhrigu Bindu
-        if let bb = export.bhriguBindu {
+        // Special Points
+        if let sp = export.specialPoints, let bb = sp.bhriguBindu {
             md += "## Bhrigu Bindu\n\n"
             md += "- **Position:** \(bb.formattedPosition)\n"
             md += "- **Nakshatra:** \(bb.nakshatra.name) (Pada \(bb.pada))\n"
-            if let h = bb.house {
-                md += "- **House:** H\(h)\n"
-            }
-            if let sav = bb.savScore {
-                md += "- **SAV Score:** \(sav)\n"
-            }
+            if let h = bb.house { md += "- **House:** H\(h)\n" }
+            if let sav = bb.savScore { md += "- **SAV Score:** \(sav)\n" }
             md += "\n"
         }
 
         // Vimshottari Dasha
-        if let dashas = export.dashas {
+        if let dasha = export.vimshottariDasha {
             md += "## Vimshottari Dasha\n\n"
 
-            if let current = export.currentDasha {
-                md += "**Current (\(isoFormatter.string(from: current.date))):** "
+            if let current = dasha.currentDasha {
+                md += "**Current (\(isoFormatter.string(from: current.asOf))):** "
                 md += current.maha
-                if let antar = current.antar {
-                    md += " / \(antar)"
-                }
-                if let pratyantar = current.pratyantar {
-                    md += " / \(pratyantar)"
-                }
+                if let antar = current.antar { md += " / \(antar)" }
+                if let pratyantar = current.pratyantar { md += " / \(pratyantar)" }
                 md += "\n\n"
             }
 
@@ -309,21 +388,19 @@ public struct ChartExporter: Sendable {
             md += "### Maha Dasha Timeline\n\n"
             md += "| Planet | Start | End | Years |\n"
             md += "|--------|-------|-----|-------|\n"
-            for maha in dashas {
-                let years = maha.durationDays / 365.25
-                md += "| \(maha.planet.rawValue) | \(dashaDF.string(from: maha.startDate)) | \(dashaDF.string(from: maha.endDate)) | \(String(format: "%.1f", years)) |\n"
+            for maha in dasha.mahaDashas {
+                md += "| \(maha.planet) | \(dashaDF.string(from: maha.startDate)) | \(dashaDF.string(from: maha.endDate)) | \(String(format: "%.1f", maha.years)) |\n"
             }
             md += "\n"
 
-            // Antar Dashas for each Maha (compact)
             md += "### Antar Dasha Breakdown\n\n"
-            for maha in dashas {
-                if maha.subPeriods.isEmpty { continue }
-                md += "**\(maha.planet.rawValue) Maha Dasha**\n\n"
+            for maha in dasha.mahaDashas {
+                if maha.antarDashas.isEmpty { continue }
+                md += "**\(maha.planet) Maha Dasha**\n\n"
                 md += "| Antar | Start | End |\n"
                 md += "|-------|-------|-----|\n"
-                for antar in maha.subPeriods {
-                    md += "| \(antar.planet.rawValue) | \(dashaDF.string(from: antar.startDate)) | \(dashaDF.string(from: antar.endDate)) |\n"
+                for antar in maha.antarDashas {
+                    md += "| \(antar.planet) | \(dashaDF.string(from: antar.startDate)) | \(dashaDF.string(from: antar.endDate)) |\n"
                 }
                 md += "\n"
             }
@@ -334,7 +411,6 @@ public struct ChartExporter: Sendable {
 
     // MARK: - Helpers
 
-    /// Abbreviate sign name to 3 letters for compact tables
     private func abbreviateSign(_ name: String) -> String {
         let abbreviations: [String: String] = [
             "Aries": "Ari", "Taurus": "Tau", "Gemini": "Gem",

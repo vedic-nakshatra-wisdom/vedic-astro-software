@@ -1,0 +1,266 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "vedicastro-chart-export-v0.5",
+  "title": "VedicAstro Chart Export",
+  "description": "Complete Vedic astrology birth chart export from VedicAstro engine v0.5. Contains D1 rasi chart, 16 divisional charts, Vimshottari Dasha, Ashtakavarga, Shadbala, Jaimini system, and special points.",
+  "type": "object",
+  "properties": {
+
+    "metadata": {
+      "description": "Export metadata and calculation settings",
+      "type": "object",
+      "properties": {
+        "engineVersion": { "type": "string", "description": "VedicAstro engine version (e.g. '0.5')" },
+        "exportDate": { "type": "string", "format": "date-time", "description": "ISO 8601 timestamp of export" },
+        "ayanamsa": { "type": "string", "description": "Ayanamsa system used (e.g. 'Lahiri', 'Raman', 'KP')" },
+        "ayanamsaValue": { "type": "number", "description": "Ayanamsa precession value in degrees at birth time" },
+        "houseSystem": { "type": "string", "description": "House system used (e.g. 'Whole Sign', 'Placidus')" },
+        "nodeType": { "type": "string", "description": "Rahu/Ketu calculation ('True Node' or 'Mean Node')" }
+      }
+    },
+
+    "birthData": {
+      "description": "Input birth data used for calculation",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Person's name" },
+        "dateTimeUTC": { "type": "string", "format": "date-time", "description": "Birth date/time in UTC (ISO 8601)" },
+        "timeZoneOffsetSeconds": { "type": "number", "description": "Timezone offset from UTC in seconds (e.g. 19800 for +5:30)" },
+        "timeZoneOffsetHours": { "type": "string", "description": "Human-readable offset (e.g. '+5.50')" },
+        "latitude": { "type": "number", "description": "Birth latitude in degrees (North positive)" },
+        "longitude": { "type": "number", "description": "Birth longitude in degrees (East positive)" },
+        "hasBirthTime": { "type": "boolean", "description": "Whether exact birth time is known. If false, ascendant and houses are omitted." }
+      }
+    },
+
+    "rasiChart": {
+      "description": "D1 Rasi (natal) chart — the primary birth chart with all planetary positions",
+      "type": "object",
+      "properties": {
+        "ascendant": {
+          "description": "Lagna (ascendant) position. Null if birth time unknown.",
+          "type": ["object", "null"],
+          "properties": {
+            "sign": { "type": "string", "description": "Zodiac sign name (e.g. 'Gemini')" },
+            "degree": { "type": "string", "description": "Formatted degree within sign (e.g. '5°23'45\"')" },
+            "longitude": { "type": "number", "description": "Absolute sidereal longitude (0-360°)" },
+            "nakshatra": { "type": "string", "description": "Lunar mansion name (e.g. 'Mrigashira')" },
+            "pada": { "type": "integer", "description": "Nakshatra quarter (1-4)", "minimum": 1, "maximum": 4 }
+          }
+        },
+        "planets": {
+          "description": "All 9 Vedic grahas in order: Sun, Moon, Mars, Mercury, Jupiter, Venus, Saturn, Rahu, Ketu",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "planet": { "type": "string", "description": "Planet name (e.g. 'Sun', 'Moon', 'Rahu')" },
+              "sign": { "type": "string", "description": "Sidereal zodiac sign (e.g. 'Leo')" },
+              "longitude": { "type": "number", "description": "Absolute sidereal longitude (0-360°)" },
+              "degreeInSign": { "type": "string", "description": "Formatted degree within sign (e.g. '23°50'12\"')" },
+              "nakshatra": { "type": "string", "description": "Lunar mansion (1 of 27 nakshatras)" },
+              "pada": { "type": "integer", "description": "Nakshatra quarter (1-4)" },
+              "house": { "type": ["integer", "null"], "description": "Whole Sign house number (1-12) from Lagna. Null if no birth time." },
+              "isRetrograde": { "type": "boolean", "description": "True if planet appears to move backward (negative speed in longitude)" }
+            }
+          }
+        },
+        "houseCusps": {
+          "description": "12 house cusp longitudes in degrees. Null if no birth time.",
+          "type": ["array", "null"],
+          "items": { "type": "number" }
+        }
+      }
+    },
+
+    "divisionalCharts": {
+      "description": "16 Shodasha Varga divisional charts, sorted by division number (D1, D2, D3, D4, D7, D9, D10, D12, D16, D20, D24, D27, D30, D40, D45, D60). Each chart maps planetary longitudes to varga signs using BPHS formulas.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "division": { "type": "integer", "description": "Division number (1, 2, 3, 4, 7, 9, 10, 12, 16, 20, 24, 27, 30, 40, 45, 60)" },
+          "name": { "type": "string", "description": "Sanskrit name (e.g. 'Navamsa', 'Dasamsa')" },
+          "shortName": { "type": "string", "description": "Short code (e.g. 'D9', 'D10')" },
+          "ascendantSign": { "type": ["string", "null"], "description": "Lagna sign in this varga. Null if no birth time." },
+          "placements": {
+            "description": "Planet-to-sign mappings in this varga, in standard order",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "planet": { "type": "string" },
+                "sign": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "vimshottariDasha": {
+      "description": "Vimshottari Dasha system — 120-year planetary period cycle based on Moon's nakshatra at birth. Contains current running period and full Maha/Antar dasha timeline.",
+      "type": ["object", "null"],
+      "properties": {
+        "currentDasha": {
+          "description": "Currently running dasha period at export time",
+          "type": ["object", "null"],
+          "properties": {
+            "asOf": { "type": "string", "format": "date-time", "description": "Date this was computed for" },
+            "maha": { "type": "string", "description": "Current Maha Dasha planet" },
+            "antar": { "type": ["string", "null"], "description": "Current Antar Dasha planet" },
+            "pratyantar": { "type": ["string", "null"], "description": "Current Pratyantar Dasha planet" }
+          }
+        },
+        "mahaDashas": {
+          "description": "Complete Maha Dasha sequence (9 periods totaling ~120 years)",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "planet": { "type": "string", "description": "Ruling planet of this Maha Dasha" },
+              "startDate": { "type": "string", "format": "date-time" },
+              "endDate": { "type": "string", "format": "date-time" },
+              "years": { "type": "number", "description": "Duration in years" },
+              "antarDashas": {
+                "description": "Sub-periods within this Maha Dasha",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "planet": { "type": "string" },
+                    "startDate": { "type": "string", "format": "date-time" },
+                    "endDate": { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "ashtakavarga": {
+      "description": "Ashtakavarga benefic point system per BPHS. bpiBindus = Bhinnashtakavarga (per planet, 12 signs). sarvashtakavarga = sum of all 7 BAV tables. Invariant: SAV total always = 337.",
+      "type": ["object", "null"],
+      "properties": {
+        "bpiBindus": {
+          "description": "Bhinnashtakavarga — per planet bindus across 12 signs. Key = planet name. Each planet has 'bindus' array (12 integers, index 0=Aries) and computed 'total'.",
+          "type": "object"
+        },
+        "sarvashtakavarga": {
+          "description": "Sarvashtakavarga — sum of all 7 BAV tables. 'bindus' array (12 integers, index 0=Aries). Total always = 337.",
+          "type": "object",
+          "properties": {
+            "bindus": { "type": "array", "items": { "type": "integer" } }
+          }
+        }
+      }
+    },
+
+    "shadbala": {
+      "description": "Shadbala — six-fold planetary strength in virupas (1/60 rupa). Currently computes: Sthana Bala (Uchcha + Saptavargaja + Ojhayugmarasi + Kendradi + Drekkana), Dig Bala, Kala Bala (Naisargika + Paksha). Remaining components (Natonnata, Tribhaga, Ayana, Cheshta, Drig) require sunrise/sunset data.",
+      "type": ["object", "null"],
+      "properties": {
+        "planetBala": {
+          "description": "Per-planet strength breakdown. Key = planet name.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "planet": { "type": "string" },
+              "uchchaBala": { "type": "number", "description": "Exaltation strength (0-60 virupas). Max at deep exaltation, 0 at deep debilitation." },
+              "saptavargajaBala": { "type": "number", "description": "Dignity in 7 vargas. Currently basic (own=30, exalt=20, debil=5, neutral=10)." },
+              "ojhayugmarasiBala": { "type": "number", "description": "Odd/even sign + navamsa strength (0, 15, or 30 virupas)." },
+              "kendradiBala": { "type": "number", "description": "Angular house strength: kendra(1,4,7,10)=60, panapara(2,5,8,11)=30, apoklima(3,6,9,12)=15." },
+              "drekkanaBala": { "type": "number", "description": "Decanate strength (0 or 15). Male planets gain in 1st decanate, neutral in 2nd, female in 3rd." },
+              "digBala": { "type": "number", "description": "Directional strength (0-60). Ju/Me strongest in 1st, Su/Ma in 10th, Sa in 7th, Mo/Ve in 4th." },
+              "naisargikaBala": { "type": "number", "description": "Fixed natural strength: Su=60, Mo=51.43, Ve=42.86, Ju=34.29, Me=25.71, Ma=17.14, Sa=8.57." },
+              "pakshaBala": { "type": "number", "description": "Lunar phase strength (0-60). Benefics stronger in waxing Moon, malefics in waning." }
+            }
+          }
+        }
+      }
+    },
+
+    "jaimini": {
+      "description": "Jaimini astrology system calculations — Chara Karakas, Karakamsa, Ishta Devta, and Arudha Lagnas",
+      "type": ["object", "null"],
+      "properties": {
+        "charaKarakas": {
+          "description": "Chara (movable) Karakas — planets ranked by degree-in-sign. Atmakaraka (AK) = highest degree = soul significator. 8-karaka system includes Rahu (inverted: 30 - degree).",
+          "type": ["object", "null"],
+          "properties": {
+            "karakas": { "description": "Planet → Karaka mapping", "type": "object" },
+            "planets": { "description": "Karaka → Planet reverse mapping", "type": "object" },
+            "isEightKaraka": { "type": "boolean", "description": "True = 8-karaka system (with Rahu/Pitrikaraka)" },
+            "ranking": {
+              "description": "Sorted list from highest to lowest degree-in-sign",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "planet": { "type": "string" },
+                  "degreeInSign": { "type": "number", "description": "Degree within sign (0-30). For Rahu: 30 - actual degree." },
+                  "karaka": { "type": "string", "description": "Karaka assigned (e.g. 'Atmakaraka', 'Darakaraka')" }
+                }
+              }
+            }
+          }
+        },
+        "karakamsa": {
+          "description": "Karakamsa — the Navamsa (D9) sign of the Atmakaraka. Foundation for Jaimini predictions.",
+          "type": ["object", "null"],
+          "properties": {
+            "atmakaraka": { "type": "string", "description": "The AK planet" },
+            "karakamsaSign": { "type": "string", "description": "AK's sign in Navamsa (D9)" },
+            "planetsInKarakamsa": { "type": "array", "items": { "type": "string" }, "description": "Planets in the Karakamsa sign (in D9)" },
+            "houseFromLagna": { "type": ["integer", "null"], "description": "House number of Karakamsa from D1 Lagna" }
+          }
+        },
+        "ishtaDevta": {
+          "description": "Ishta Devta (chosen deity). Method: 12th sign from Karakamsa in D1 chart. If planet present → that planet's deity. If empty → sign lord's deity.",
+          "type": ["object", "null"],
+          "properties": {
+            "atmakaraka": { "type": "string" },
+            "karakamsaSign": { "type": "string", "description": "AK's Navamsa sign" },
+            "twelfthFromKarakamsa": { "type": "string", "description": "The 12th sign from Karakamsa" },
+            "planetsInTwelfth": { "type": "array", "items": { "type": "string" }, "description": "Planets in that 12th sign in D1 (may be empty)" },
+            "significator": { "type": "string", "description": "Planet determining the deity (occupant or sign lord)" },
+            "deity": { "type": "string", "description": "The indicated deity name (e.g. 'Goddess Lakshmi')" }
+          }
+        },
+        "arudhaLagnas": {
+          "description": "Arudha Lagnas for all 12 houses. Arudha = project lord's distance from house back from lord. BPHS exception: if result lands in same house or 7th, use 10th instead.",
+          "type": ["object", "null"],
+          "properties": {
+            "arudhas": {
+              "description": "House number (1-12) → Sign name mapping. Key houses: 1=Pada Lagna (AL), 7=Darapada, 12=Upapada (UL).",
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+
+    "specialPoints": {
+      "description": "Special calculated points in the chart",
+      "type": ["object", "null"],
+      "properties": {
+        "bhriguBindu": {
+          "description": "Bhrigu Bindu — midpoint of Moon and Rahu (shorter arc). A highly sensitive transit trigger point. When planets transit this degree, significant life events manifest. The SAV score at this sign indicates whether results are favorable (high SAV) or challenging (low SAV).",
+          "type": ["object", "null"],
+          "properties": {
+            "longitude": { "type": "number", "description": "Sidereal longitude (0-360°)" },
+            "sign": { "type": "string", "description": "Zodiac sign" },
+            "degreeInSign": { "type": "number", "description": "Degree within sign (0-30)" },
+            "nakshatra": { "type": "string", "description": "Nakshatra name" },
+            "pada": { "type": "integer", "description": "Nakshatra pada (1-4)" },
+            "house": { "type": ["integer", "null"], "description": "Whole Sign house from Lagna (1-12)" },
+            "savScore": { "type": ["integer", "null"], "description": "Sarvashtakavarga bindu count at this sign. Higher = more favorable transit results." }
+          }
+        }
+      }
+    }
+  }
+}

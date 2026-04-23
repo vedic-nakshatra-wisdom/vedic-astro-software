@@ -2,64 +2,168 @@ import Foundation
 
 /// Complete chart export bundle — single Codable root for JSON export
 /// and input for Markdown formatting.
+///
+/// Fields are ordered for readability:
+/// metadata → birthData → rasiChart → divisionalCharts → dashas →
+/// ashtakavarga → shadbala → jaimini → specialPoints
 public struct ChartExport: Codable, Sendable {
-    /// Birth data and D1 chart
-    public let chart: BirthChart
-    /// Divisional chart placements (lightweight, no back-reference)
-    public let vargas: [VargaExport]
-    /// Vimshottari dasha periods (Maha level with nested Antar/Pratyantar)
-    public let dashas: [DashaPeriod]?
-    /// Current dasha path at export time (if dashas computed)
-    public let currentDasha: CurrentDashaExport?
-    /// Ashtakavarga results (BAV + SAV)
-    public let ashtakavarga: AshtakavargaResult?
-    /// Jaimini Chara Karaka results
-    public let karakas: CharaKarakaResult?
-    /// Shadbala (six-fold planetary strength)
-    public let shadbala: ShadBalaResult?
-    /// Ishta Devta and Karakamsa
-    public let ishtaDevta: IshtaDevtaResult?
-    /// Arudha Lagnas (all 12 houses)
-    public let arudhaLagna: ArudhaLagnaResult?
-    /// Bhrigu Bindu (Moon-Rahu midpoint)
-    public let bhriguBindu: BhriguBinduResult?
-    /// Export metadata
+
+    // --- Section 1: Metadata ---
     public let metadata: ExportMetadata
 
-    public struct ExportMetadata: Codable, Sendable {
-        public let exportDate: Date
-        public let engineVersion: String
-        public let ayanamsa: String
-        public let houseSystem: String
-        public let nodeType: String
+    // --- Section 2: Birth Data (input) ---
+    public let birthData: BirthDataExport
+
+    // --- Section 3: Rasi Chart (D1) ---
+    public let rasiChart: RasiChartExport
+
+    // --- Section 4: Divisional Charts (D1–D60, sorted) ---
+    public let divisionalCharts: [VargaExport]
+
+    // --- Section 5: Vimshottari Dasha ---
+    public let vimshottariDasha: VimshottariDashaExport?
+
+    // --- Section 6: Ashtakavarga ---
+    public let ashtakavarga: AshtakavargaResult?
+
+    // --- Section 7: Shadbala ---
+    public let shadbala: ShadBalaResult?
+
+    // --- Section 8: Jaimini System ---
+    public let jaimini: JaiminiExport?
+
+    // --- Section 9: Special Points ---
+    public let specialPoints: SpecialPointsExport?
+
+    // MARK: - Coding Keys (controls JSON field order)
+
+    enum CodingKeys: String, CodingKey {
+        case metadata
+        case birthData
+        case rasiChart
+        case divisionalCharts
+        case vimshottariDasha
+        case ashtakavarga
+        case shadbala
+        case jaimini
+        case specialPoints
+    }
+}
+
+// MARK: - Sub-structures
+
+public struct ExportMetadata: Codable, Sendable {
+    public let engineVersion: String
+    public let exportDate: Date
+    public let ayanamsa: String
+    public let ayanamsaValue: Double
+    public let houseSystem: String
+    public let nodeType: String
+}
+
+public struct BirthDataExport: Codable, Sendable {
+    public let name: String
+    public let dateTimeUTC: Date
+    public let timeZoneOffsetSeconds: Double
+    public let timeZoneOffsetHours: String
+    public let latitude: Double
+    public let longitude: Double
+    public let hasBirthTime: Bool
+}
+
+public struct RasiChartExport: Codable, Sendable {
+    public let ascendant: AscendantExport?
+    public let planets: [PlanetExport]
+    public let houseCusps: [Double]?
+}
+
+public struct AscendantExport: Codable, Sendable {
+    public let sign: String
+    public let degree: String
+    public let longitude: Double
+    public let nakshatra: String
+    public let pada: Int
+}
+
+public struct PlanetExport: Codable, Sendable {
+    public let planet: String
+    public let sign: String
+    public let longitude: Double
+    public let degreeInSign: String
+    public let nakshatra: String
+    public let pada: Int
+    public let house: Int?
+    public let isRetrograde: Bool
+}
+
+public struct VargaExport: Codable, Sendable {
+    public let division: Int
+    public let name: String
+    public let shortName: String
+    public let ascendantSign: String?
+    public let placements: [VargaPlacement]
+
+    public struct VargaPlacement: Codable, Sendable {
+        public let planet: String
+        public let sign: String
     }
 
+    /// Create from a VargaChart (strips the sourceChart reference)
+    public init(from vargaChart: VargaChart) {
+        self.division = vargaChart.vargaType.rawValue
+        self.name = vargaChart.vargaType.name
+        self.shortName = vargaChart.vargaType.shortName
+        self.ascendantSign = vargaChart.ascendantSign?.name
+        let order: [Planet] = [.sun, .moon, .mars, .mercury, .jupiter, .venus, .saturn, .rahu, .ketu]
+        self.placements = order.compactMap { planet in
+            guard let sign = vargaChart.placements[planet] else { return nil }
+            return VargaPlacement(planet: planet.rawValue, sign: sign.name)
+        }
+    }
+}
+
+public struct VimshottariDashaExport: Codable, Sendable {
+    public let currentDasha: CurrentDashaExport?
+    public let mahaDashas: [MahaDashaExport]
+
     public struct CurrentDashaExport: Codable, Sendable {
-        public let date: Date
+        public let asOf: Date
         public let maha: String
         public let antar: String?
         public let pratyantar: String?
     }
+
+    public struct MahaDashaExport: Codable, Sendable {
+        public let planet: String
+        public let startDate: Date
+        public let endDate: Date
+        public let years: Double
+        public let antarDashas: [AntarDashaExport]
+    }
+
+    public struct AntarDashaExport: Codable, Sendable {
+        public let planet: String
+        public let startDate: Date
+        public let endDate: Date
+    }
 }
 
-/// Lightweight varga export — just the sign placements, no BirthChart back-reference.
-public struct VargaExport: Codable, Sendable {
-    public let vargaType: VargaType
-    public let name: String
-    public let shortName: String
-    public let ascendantSign: String?
-    public let placements: [String: String]  // e.g. {"Sun": "Leo", "Moon": "Gemini"}
+public struct JaiminiExport: Codable, Sendable {
+    public let charaKarakas: CharaKarakaResult?
+    public let karakamsa: KarakamsaResult?
+    public let ishtaDevta: IshtaDevtaExport?
+    public let arudhaLagnas: ArudhaLagnaResult?
+}
 
-    /// Create from a VargaChart (strips the sourceChart reference)
-    public init(from vargaChart: VargaChart) {
-        self.vargaType = vargaChart.vargaType
-        self.name = vargaChart.vargaType.name
-        self.shortName = vargaChart.vargaType.shortName
-        self.ascendantSign = vargaChart.ascendantSign?.name
-        var p: [String: String] = [:]
-        for (planet, sign) in vargaChart.placements {
-            p[planet.rawValue] = sign.name
-        }
-        self.placements = p
-    }
+public struct IshtaDevtaExport: Codable, Sendable {
+    public let atmakaraka: String
+    public let karakamsaSign: String
+    public let twelfthFromKarakamsa: String
+    public let planetsInTwelfth: [String]
+    public let significator: String
+    public let deity: String
+}
+
+public struct SpecialPointsExport: Codable, Sendable {
+    public let bhriguBindu: BhriguBinduResult?
 }
