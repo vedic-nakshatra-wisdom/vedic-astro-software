@@ -1,7 +1,7 @@
 import Foundation
 
 /// The Jaimini Chara Karakas (movable significators).
-public enum CharaKaraka: String, Codable, Sendable, CaseIterable {
+public enum CharaKaraka: String, Codable, Sendable, CaseIterable, CodingKeyRepresentable {
     case atmakaraka = "Atmakaraka"           // AK - Self/Soul
     case amatyakaraka = "Amatyakaraka"       // AmK - Minister/Career
     case bhratrikaraka = "Bhratrikaraka"     // BK - Siblings
@@ -52,6 +52,19 @@ public struct CharaKarakaResult: Codable, Sendable {
         public let planet: Planet
         public let degreeInSign: Double
         public let karaka: CharaKaraka
+
+        // MARK: - Codable
+
+        private enum CodingKeys: String, CodingKey {
+            case planet, degreeInSign, karaka
+        }
+
+        public func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(planet, forKey: .planet)
+            try container.encode(degreeInSign, forKey: .degreeInSign)
+            try container.encode(karaka, forKey: .karaka)
+        }
     }
 
     /// Get the karaka for a planet
@@ -62,6 +75,47 @@ public struct CharaKarakaResult: Codable, Sendable {
     /// Get the planet holding a karaka
     public func planet(for karaka: CharaKaraka) -> Planet? {
         planets[karaka]
+    }
+
+    // MARK: - Codable
+
+    private enum CodingKeys: String, CodingKey {
+        case karakas, planets, isEightKaraka, ranking
+    }
+
+    private struct DynamicKey: CodingKey {
+        var stringValue: String
+        init(stringValue: String) { self.stringValue = stringValue }
+        var intValue: Int? { nil }
+        init?(intValue: Int) { return nil }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+
+        // Encode karakas in standard planet order
+        var karakasContainer = container.nestedContainer(keyedBy: DynamicKey.self, forKey: .karakas)
+        let planetOrder: [Planet] = [.sun, .moon, .mars, .mercury, .jupiter, .venus, .saturn, .rahu, .ketu]
+        for planet in planetOrder {
+            if let karaka = karakas[planet] {
+                try karakasContainer.encode(karaka, forKey: DynamicKey(stringValue: planet.rawValue))
+            }
+        }
+
+        // Encode planets in karaka order
+        var planetsContainer = container.nestedContainer(keyedBy: DynamicKey.self, forKey: .planets)
+        let karakaOrder: [CharaKaraka] = [
+            .atmakaraka, .amatyakaraka, .bhratrikaraka, .matrikaraka,
+            .pitrikaraka, .putrakaraka, .gnatikaraka, .darakaraka
+        ]
+        for karaka in karakaOrder {
+            if let planet = planets[karaka] {
+                try planetsContainer.encode(planet, forKey: DynamicKey(stringValue: karaka.rawValue))
+            }
+        }
+
+        try container.encode(isEightKaraka, forKey: .isEightKaraka)
+        try container.encode(ranking, forKey: .ranking)
     }
 
     /// Print summary

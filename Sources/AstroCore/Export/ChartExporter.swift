@@ -16,6 +16,7 @@ public struct ChartExporter: Sendable {
         ishtaDevta: IshtaDevtaResult? = nil,
         arudhaLagna: ArudhaLagnaResult? = nil,
         bhriguBindu: BhriguBinduResult? = nil,
+        pushkara: PushkaraResult? = nil,
         currentDate: Date = Date()
     ) -> ChartExport {
 
@@ -158,8 +159,8 @@ public struct ChartExporter: Sendable {
 
         // 9. Special Points
         let specialExport: SpecialPointsExport?
-        if bhriguBindu != nil {
-            specialExport = SpecialPointsExport(bhriguBindu: bhriguBindu)
+        if bhriguBindu != nil || pushkara != nil {
+            specialExport = SpecialPointsExport(bhriguBindu: bhriguBindu, pushkara: pushkara)
         } else {
             specialExport = nil
         }
@@ -181,11 +182,7 @@ public struct ChartExporter: Sendable {
 
     /// Export to JSON string. Field order follows struct declaration order.
     public func toJSON(_ export: ChartExport, prettyPrint: Bool = true) throws -> String {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        if prettyPrint {
-            encoder.outputFormatting = [.prettyPrinted]
-        }
+        let encoder = OrderedJSONEncoder()
         let data = try encoder.encode(export)
         return String(data: data, encoding: .utf8)!
     }
@@ -375,6 +372,37 @@ public struct ChartExporter: Sendable {
             if let h = bb.house { md += "- **House:** H\(h)\n" }
             if let sav = bb.savScore { md += "- **SAV Score:** \(sav)\n" }
             md += "\n"
+        }
+
+        // Pushkara
+        if let sp = export.specialPoints, let pushkara = sp.pushkara {
+            md += "## Pushkara Analysis\n\n"
+
+            let pnPlanets = pushkara.pushkaraNavamsaPlanets
+            if !pnPlanets.isEmpty {
+                md += "### Pushkara Navamsa\n\n"
+                md += "| Planet | Navamsa Sign |\n"
+                md += "|--------|--------------|\n"
+                for p in pnPlanets {
+                    md += "| \(p.planet.rawValue) | \(p.navamsaSign.name) |\n"
+                }
+                md += "\n"
+            }
+
+            let pbPlanets = pushkara.pushkaraBhagaPlanets
+            if !pbPlanets.isEmpty {
+                md += "### Pushkara Bhaga\n\n"
+                md += "| Planet | Degree | PB Degree | Orb |\n"
+                md += "|--------|--------|-----------|-----|\n"
+                for p in pbPlanets {
+                    md += "| \(p.planet.rawValue) | \(String(format: "%.2f", p.degreeInSign))\u{00B0} | \(String(format: "%.0f", p.pushkaraBhagaDegree))\u{00B0} | \(String(format: "%.2f", p.orbFromPushkaraBhaga))\u{00B0} |\n"
+                }
+                md += "\n"
+            }
+
+            if pnPlanets.isEmpty && pbPlanets.isEmpty {
+                md += "No planets in Pushkara Navamsa or at Pushkara Bhaga.\n\n"
+            }
         }
 
         // Vimshottari Dasha

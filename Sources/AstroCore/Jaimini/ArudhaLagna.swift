@@ -19,6 +19,29 @@ public struct ArudhaLagnaResult: Codable, Sendable {
     public func arudha(ofHouse house: Int) -> Sign? {
         arudhas[house]
     }
+
+    // MARK: - Codable
+
+    private enum CodingKeys: String, CodingKey {
+        case arudhas
+    }
+
+    private struct DynamicKey: CodingKey {
+        var stringValue: String
+        init(stringValue: String) { self.stringValue = stringValue }
+        var intValue: Int? { nil }
+        init?(intValue: Int) { return nil }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        var arudhasContainer = container.nestedContainer(keyedBy: DynamicKey.self, forKey: .arudhas)
+        for house in 1...12 {
+            if let sign = arudhas[house] {
+                try arudhasContainer.encode(sign, forKey: DynamicKey(stringValue: "\(house)"))
+            }
+        }
+    }
 }
 
 /// Computes Arudha Lagnas for all 12 houses.

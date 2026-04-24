@@ -50,6 +50,26 @@ public struct PlanetShadBala: Codable, Sendable {
     public var totalRupas: Double {
         totalVirupas / 60.0
     }
+
+    // MARK: - Codable
+
+    private enum CodingKeys: String, CodingKey {
+        case planet, uchchaBala, saptavargajaBala, ojhayugmarasiBala
+        case kendradiBala, drekkanaBala, digBala, naisargikaBala, pakshaBala
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(planet, forKey: .planet)
+        try container.encode(uchchaBala, forKey: .uchchaBala)
+        try container.encode(saptavargajaBala, forKey: .saptavargajaBala)
+        try container.encode(ojhayugmarasiBala, forKey: .ojhayugmarasiBala)
+        try container.encode(kendradiBala, forKey: .kendradiBala)
+        try container.encode(drekkanaBala, forKey: .drekkanaBala)
+        try container.encode(digBala, forKey: .digBala)
+        try container.encode(naisargikaBala, forKey: .naisargikaBala)
+        try container.encode(pakshaBala, forKey: .pakshaBala)
+    }
 }
 
 /// Complete Shadbala results for all planets.
@@ -78,5 +98,29 @@ public struct ShadBalaResult: Codable, Sendable {
     /// Weakest planet by total virupas
     public var weakest: Planet? {
         planetBala.min(by: { $0.value.totalVirupas < $1.value.totalVirupas })?.key
+    }
+
+    // MARK: - Codable
+
+    private enum CodingKeys: String, CodingKey {
+        case planetBala
+    }
+
+    private struct DynamicKey: CodingKey {
+        var stringValue: String
+        init(stringValue: String) { self.stringValue = stringValue }
+        var intValue: Int? { nil }
+        init?(intValue: Int) { return nil }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        var balaContainer = container.nestedContainer(keyedBy: DynamicKey.self, forKey: .planetBala)
+        let order: [Planet] = [.sun, .moon, .mars, .mercury, .jupiter, .venus, .saturn]
+        for planet in order {
+            if let bala = planetBala[planet] {
+                try balaContainer.encode(bala, forKey: DynamicKey(stringValue: planet.rawValue))
+            }
+        }
     }
 }

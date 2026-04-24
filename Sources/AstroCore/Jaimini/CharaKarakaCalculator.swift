@@ -6,9 +6,10 @@ public struct CharaKarakaCalculator: Sendable {
 
     public init() {}
 
-    /// Compute Chara Karakas using the 8-karaka system (default, includes Rahu).
+    /// Compute Chara Karakas. Default is the 7-karaka system (KN Rao / Parashara),
+    /// which excludes Rahu. Set `useEightKaraka: true` for the 8-karaka system.
     /// Returns nil if required planet positions are missing.
-    public func compute(from chart: BirthChart, useEightKaraka: Bool = true) -> CharaKarakaResult? {
+    public func compute(from chart: BirthChart, useEightKaraka: Bool = false) -> CharaKarakaResult? {
         // Determine which planets participate
         let participants: [Planet]
         if useEightKaraka {

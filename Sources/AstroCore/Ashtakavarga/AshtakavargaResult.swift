@@ -15,6 +15,18 @@ public struct Bhinnashtakavarga: Codable, Sendable {
     public func bindus(in sign: Sign) -> Int {
         bindus[sign.rawValue]
     }
+
+    // MARK: - Codable
+
+    private enum CodingKeys: String, CodingKey {
+        case planet, bindus
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(planet, forKey: .planet)
+        try container.encode(bindus, forKey: .bindus)
+    }
 }
 
 /// Sarvashtakavarga -- sum of all 7 Bhinnashtakavarga tables.
@@ -35,6 +47,17 @@ public struct Sarvashtakavarga: Codable, Sendable {
     public func isStrong(sign: Sign) -> Bool {
         bindus[sign.rawValue] >= 28
     }
+
+    // MARK: - Codable
+
+    private enum CodingKeys: String, CodingKey {
+        case bindus
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(bindus, forKey: .bindus)
+    }
 }
 
 /// Complete Ashtakavarga result for a chart.
@@ -43,6 +66,31 @@ public struct AshtakavargaResult: Codable, Sendable {
     public let bpiBindus: [Planet: Bhinnashtakavarga]
     /// Sarvashtakavarga (sum of all BAVs)
     public let sarvashtakavarga: Sarvashtakavarga
+
+    // MARK: - Codable
+
+    private enum CodingKeys: String, CodingKey {
+        case bpiBindus, sarvashtakavarga
+    }
+
+    private struct DynamicKey: CodingKey {
+        var stringValue: String
+        init(stringValue: String) { self.stringValue = stringValue }
+        var intValue: Int? { nil }
+        init?(intValue: Int) { return nil }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        var bindusContainer = container.nestedContainer(keyedBy: DynamicKey.self, forKey: .bpiBindus)
+        let order: [Planet] = [.sun, .moon, .mars, .mercury, .jupiter, .venus, .saturn]
+        for planet in order {
+            if let bav = bpiBindus[planet] {
+                try bindusContainer.encode(bav, forKey: DynamicKey(stringValue: planet.rawValue))
+            }
+        }
+        try container.encode(sarvashtakavarga, forKey: .sarvashtakavarga)
+    }
 
     /// Print summary
     public func printSummary() {

@@ -2,7 +2,7 @@ import Foundation
 
 /// The 9 Vedic grahas (celestial bodies) used in Jyotish.
 /// Rahu and Ketu are lunar nodes, not physical planets.
-public enum Planet: String, Codable, Sendable, CaseIterable, Hashable {
+public enum Planet: String, Codable, Sendable, CaseIterable, Hashable, CodingKeyRepresentable {
     case sun = "Sun"
     case moon = "Moon"
     case mars = "Mars"

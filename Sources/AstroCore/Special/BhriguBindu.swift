@@ -22,6 +22,23 @@ public struct BhriguBinduResult: Codable, Sendable {
     /// SAV score at the Bhrigu Bindu sign (if Ashtakavarga provided)
     public let savScore: Int?
 
+    // MARK: - Codable
+
+    private enum CodingKeys: String, CodingKey {
+        case longitude, sign, degreeInSign, nakshatra, pada, house, savScore
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(longitude, forKey: .longitude)
+        try container.encode(sign, forKey: .sign)
+        try container.encode(degreeInSign, forKey: .degreeInSign)
+        try container.encode(nakshatra, forKey: .nakshatra)
+        try container.encode(pada, forKey: .pada)
+        try container.encodeIfPresent(house, forKey: .house)
+        try container.encodeIfPresent(savScore, forKey: .savScore)
+    }
+
     /// Formatted position string
     public var formattedPosition: String {
         let deg = degreeInSign

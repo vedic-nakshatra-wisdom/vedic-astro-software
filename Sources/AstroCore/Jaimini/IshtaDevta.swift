@@ -17,6 +17,20 @@ public struct KarakamsaResult: Codable, Sendable {
     public let planetsInKarakamsa: [Planet]
     /// House number of Karakamsa from D1 Lagna (Whole Sign)
     public let houseFromLagna: Int?
+
+    // MARK: - Codable
+
+    private enum CodingKeys: String, CodingKey {
+        case atmakaraka, karakamsaSign, planetsInKarakamsa, houseFromLagna
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(atmakaraka, forKey: .atmakaraka)
+        try container.encode(karakamsaSign, forKey: .karakamsaSign)
+        try container.encode(planetsInKarakamsa, forKey: .planetsInKarakamsa)
+        try container.encodeIfPresent(houseFromLagna, forKey: .houseFromLagna)
+    }
 }
 
 public struct IshtaDevtaResult: Codable, Sendable {
@@ -35,6 +49,24 @@ public struct IshtaDevtaResult: Codable, Sendable {
     /// The indicated deity
     public let deity: Deity
 
+    // MARK: - Codable
+
+    private enum CodingKeys: String, CodingKey {
+        case atmakaraka, karakamsa, akNavamsaSign, twelfthSign
+        case planetsInTwelfth, significator, deity
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(atmakaraka, forKey: .atmakaraka)
+        try container.encode(karakamsa, forKey: .karakamsa)
+        try container.encode(akNavamsaSign, forKey: .akNavamsaSign)
+        try container.encode(twelfthSign, forKey: .twelfthSign)
+        try container.encode(planetsInTwelfth, forKey: .planetsInTwelfth)
+        try container.encode(significator, forKey: .significator)
+        try container.encode(deity, forKey: .deity)
+    }
+
     /// Vedic deities associated with planetary significators.
     /// Each planet maps to a primary deity with alternates from various Jaimini traditions.
     public struct Deity: Codable, Sendable, Equatable {
@@ -44,6 +76,19 @@ public struct IshtaDevtaResult: Codable, Sendable {
         public let alternates: [String]
         /// Devotional theme this planet represents
         public let theme: String
+
+        // MARK: - Codable
+
+        private enum CodingKeys: String, CodingKey {
+            case primary, alternates, theme
+        }
+
+        public func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(primary, forKey: .primary)
+            try container.encode(alternates, forKey: .alternates)
+            try container.encode(theme, forKey: .theme)
+        }
 
         /// Map a planet to its deity per Jaimini tradition
         public static func from(planet: Planet) -> Deity {
