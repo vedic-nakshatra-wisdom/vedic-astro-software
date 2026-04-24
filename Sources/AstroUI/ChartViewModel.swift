@@ -54,6 +54,63 @@ struct SavedChartProfile: Codable, Identifiable {
     let longitude: String
     let locationName: String
     let savedDate: Date
+    var isFavorite: Bool = false
+    var lastOpenedDate: Date?
+
+    init(id: UUID = UUID(), name: String, year: String, month: String, day: String,
+         hour: String, minute: String, second: String, timeZoneID: String,
+         latitude: String, longitude: String, locationName: String, savedDate: Date,
+         isFavorite: Bool = false, lastOpenedDate: Date? = nil) {
+        self.id = id
+        self.name = name
+        self.year = year
+        self.month = month
+        self.day = day
+        self.hour = hour
+        self.minute = minute
+        self.second = second
+        self.timeZoneID = timeZoneID
+        self.latitude = latitude
+        self.longitude = longitude
+        self.locationName = locationName
+        self.savedDate = savedDate
+        self.isFavorite = isFavorite
+        self.lastOpenedDate = lastOpenedDate
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        year = try container.decode(String.self, forKey: .year)
+        month = try container.decode(String.self, forKey: .month)
+        day = try container.decode(String.self, forKey: .day)
+        hour = try container.decode(String.self, forKey: .hour)
+        minute = try container.decode(String.self, forKey: .minute)
+        second = try container.decode(String.self, forKey: .second)
+        timeZoneID = try container.decode(String.self, forKey: .timeZoneID)
+        latitude = try container.decode(String.self, forKey: .latitude)
+        longitude = try container.decode(String.self, forKey: .longitude)
+        locationName = try container.decode(String.self, forKey: .locationName)
+        savedDate = try container.decode(Date.self, forKey: .savedDate)
+        isFavorite = (try? container.decode(Bool.self, forKey: .isFavorite)) ?? false
+        lastOpenedDate = try? container.decode(Date.self, forKey: .lastOpenedDate)
+    }
+}
+
+/// Sort order for saved profiles
+enum ProfileSortOrder: String, CaseIterable, Identifiable {
+    case dateCreated = "Date Created"
+    case name = "Name"
+    case birthDate = "Birth Date"
+
+    var id: String { rawValue }
+}
+
+/// Unified sidebar selection
+enum SidebarSelection: Hashable {
+    case profile(UUID)
+    case section(ChartSection)
 }
 
 @Observable
@@ -82,12 +139,15 @@ final class ChartViewModel {
 
     // MARK: - Saved Profiles
     var savedProfiles: [SavedChartProfile] = []
-    var showingSavedCharts = false
     var showingSaveBeforeNewAlert = false
     var showingSaveBeforeQuitAlert = false
+    var searchText: String = ""
+    var sortOrder: ProfileSortOrder = .dateCreated
+    var profileToDelete: SavedChartProfile?
+    var showDeleteConfirmation = false
 
     // MARK: - Navigation
-    var selectedSection: ChartSection? = .dashboard
+    var selectedSection: SidebarSelection? = .section(.dashboard)
     var showingInputSheet = false
 
     // MARK: - State
@@ -312,6 +372,45 @@ final class ChartViewModel {
         return VimshottariCalculator().activeDashaPath(in: dashas, at: Date())
     }
 
+    // MARK: - Computed Profile Lists
+
+    var favoriteProfiles: [SavedChartProfile] {
+        savedProfiles.filter(\.isFavorite).sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    var recentProfiles: [SavedChartProfile] {
+        savedProfiles
+            .filter { $0.lastOpenedDate != nil }
+            .sorted { ($0.lastOpenedDate ?? .distantPast) > ($1.lastOpenedDate ?? .distantPast) }
+            .prefix(5)
+            .map { $0 }
+    }
+
+    var filteredProfiles: [SavedChartProfile] {
+        let base: [SavedChartProfile]
+        if searchText.isEmpty {
+            base = savedProfiles
+        } else {
+            let query = searchText.lowercased()
+            base = savedProfiles.filter {
+                $0.name.lowercased().contains(query) ||
+                $0.locationName.lowercased().contains(query)
+            }
+        }
+        switch sortOrder {
+        case .dateCreated:
+            return base.sorted { $0.savedDate > $1.savedDate }
+        case .name:
+            return base.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        case .birthDate:
+            return base.sorted {
+                let a = "\($0.year)-\($0.month.leftPad(2))-\($0.day.leftPad(2))"
+                let b = "\($1.year)-\($1.month.leftPad(2))-\($1.day.leftPad(2))"
+                return a < b
+            }
+        }
+    }
+
     // MARK: - Profile Storage
 
     private static var profilesDirectory: URL {
@@ -328,9 +427,17 @@ final class ChartViewModel {
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
+        let fm = FileManager.default
         savedProfiles = files.compactMap { url in
-            guard let data = try? Data(contentsOf: url) else { return nil }
-            return try? decoder.decode(SavedChartProfile.self, from: data)
+            guard let data = try? Data(contentsOf: url),
+                  let profile = try? decoder.decode(SavedChartProfile.self, from: data) else { return nil }
+            // Migrate to UUID-based filename if needed
+            let expectedName = "\(profile.id.uuidString).json"
+            if url.lastPathComponent != expectedName {
+                let newURL = dir.appendingPathComponent(expectedName)
+                try? fm.moveItem(at: url, to: newURL)
+            }
+            return profile
         }
         .sorted { $0.savedDate > $1.savedDate }
     }
@@ -369,11 +476,12 @@ final class ChartViewModel {
     /// `completion` is called after the save completes (or is cancelled).
     /// `didSave` is true if the user actually saved.
     func saveCurrentProfile(askLocation: Bool = true, completion: ((Bool) -> Void)? = nil) {
-        guard let (_, data) = buildProfileData() else {
+        guard let (profile, data) = buildProfileData() else {
             completion?(false)
             return
         }
         let defaultFilename = "\(name.replacingOccurrences(of: " ", with: "_"))_profile.json"
+        let internalFilename = "\(profile.id.uuidString).json"
 
         #if os(macOS)
         if askLocation {
@@ -385,7 +493,7 @@ final class ChartViewModel {
                 if response == .OK, let url = panel.url {
                     try? data.write(to: url, options: .atomic)
                     Self.lastSaveDirectory = url.deletingLastPathComponent()
-                    let internalURL = Self.profilesDirectory.appendingPathComponent(url.lastPathComponent)
+                    let internalURL = Self.profilesDirectory.appendingPathComponent(internalFilename)
                     if internalURL != url {
                         try? data.write(to: internalURL, options: .atomic)
                     }
@@ -406,7 +514,7 @@ final class ChartViewModel {
         let dir = Self.lastSaveDirectory ?? Self.profilesDirectory
         let url = dir.appendingPathComponent(defaultFilename)
         try? data.write(to: url, options: .atomic)
-        let internalURL = Self.profilesDirectory.appendingPathComponent(defaultFilename)
+        let internalURL = Self.profilesDirectory.appendingPathComponent(internalFilename)
         if internalURL != url {
             try? data.write(to: internalURL, options: .atomic)
         }
@@ -456,19 +564,73 @@ final class ChartViewModel {
 
     func deleteProfile(_ profile: SavedChartProfile) {
         let dir = Self.profilesDirectory
-        if let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) {
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            for url in files where url.pathExtension == "json" {
-                if let data = try? Data(contentsOf: url),
-                   let p = try? decoder.decode(SavedChartProfile.self, from: data),
-                   p.id == profile.id {
-                    try? FileManager.default.removeItem(at: url)
-                    break
+        let url = dir.appendingPathComponent("\(profile.id.uuidString).json")
+        if FileManager.default.fileExists(atPath: url.path) {
+            try? FileManager.default.removeItem(at: url)
+        } else {
+            // Fallback: scan files for old naming convention
+            if let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) {
+                let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .iso8601
+                for fileURL in files where fileURL.pathExtension == "json" {
+                    if let data = try? Data(contentsOf: fileURL),
+                       let p = try? decoder.decode(SavedChartProfile.self, from: data),
+                       p.id == profile.id {
+                        try? FileManager.default.removeItem(at: fileURL)
+                        break
+                    }
                 }
             }
         }
         loadSavedProfiles()
+    }
+
+    func toggleFavorite(_ profile: SavedChartProfile) {
+        let dir = Self.profilesDirectory
+        let url = dir.appendingPathComponent("\(profile.id.uuidString).json")
+        guard let data = try? Data(contentsOf: url) else { return }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        guard var updated = try? decoder.decode(SavedChartProfile.self, from: data) else { return }
+        updated.isFavorite.toggle()
+        writeProfile(updated, to: url)
+        loadSavedProfiles()
+    }
+
+    func duplicateProfile(_ profile: SavedChartProfile) {
+        let newProfile = SavedChartProfile(
+            name: "\(profile.name) (Copy)",
+            year: profile.year, month: profile.month, day: profile.day,
+            hour: profile.hour, minute: profile.minute, second: profile.second,
+            timeZoneID: profile.timeZoneID,
+            latitude: profile.latitude, longitude: profile.longitude,
+            locationName: profile.locationName,
+            savedDate: Date()
+        )
+        let dir = Self.profilesDirectory
+        let url = dir.appendingPathComponent("\(newProfile.id.uuidString).json")
+        writeProfile(newProfile, to: url)
+        loadSavedProfiles()
+    }
+
+    func updateLastOpened(_ profile: SavedChartProfile) {
+        let dir = Self.profilesDirectory
+        let url = dir.appendingPathComponent("\(profile.id.uuidString).json")
+        guard let data = try? Data(contentsOf: url) else { return }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        guard var updated = try? decoder.decode(SavedChartProfile.self, from: data) else { return }
+        updated.lastOpenedDate = Date()
+        writeProfile(updated, to: url)
+        loadSavedProfiles()
+    }
+
+    private func writeProfile(_ profile: SavedChartProfile, to url: URL) {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = .prettyPrinted
+        guard let data = try? encoder.encode(profile) else { return }
+        try? data.write(to: url, options: .atomic)
     }
 
     func newChart() {
@@ -503,7 +665,14 @@ final class ChartViewModel {
         selectedLocationName = ""
         locationResults = []
 
-        selectedSection = .dashboard
+        selectedSection = .section(.dashboard)
         showingInputSheet = true
+    }
+}
+
+extension String {
+    func leftPad(_ length: Int, with char: Character = "0") -> String {
+        if count >= length { return self }
+        return String(repeating: char, count: length - count) + self
     }
 }

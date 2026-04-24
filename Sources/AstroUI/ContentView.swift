@@ -16,9 +16,6 @@ struct ContentView: View {
         .sheet(isPresented: $viewModel.showingInputSheet) {
             BirthDataFormView(viewModel: viewModel)
         }
-        .sheet(isPresented: $viewModel.showingSavedCharts) {
-            SavedChartsSheet(viewModel: viewModel)
-        }
         .alert("Save Current Chart?", isPresented: $viewModel.showingSaveBeforeNewAlert) {
             Button("Save & New Chart") {
                 viewModel.saveCurrentProfile(askLocation: true) { didSave in
@@ -54,11 +51,25 @@ struct ContentView: View {
         } message: {
             Text("Do you want to save \"\(viewModel.name)\" before quitting?")
         }
+        .confirmationDialog(
+            "Delete Chart",
+            isPresented: $viewModel.showDeleteConfirmation,
+            presenting: viewModel.profileToDelete
+        ) { profile in
+            Button("Delete \"\(profile.name)\"", role: .destructive) {
+                viewModel.deleteProfile(profile)
+                viewModel.profileToDelete = nil
+            }
+            Button("Cancel", role: .cancel) {
+                viewModel.profileToDelete = nil
+            }
+        } message: { profile in
+            Text("Are you sure you want to delete \"\(profile.name)\"? This cannot be undone.")
+        }
         .onReceive(NotificationCenter.default.publisher(for: .saveBeforeQuit)) { _ in
             if viewModel.isDirty {
                 viewModel.showingSaveBeforeQuitAlert = true
             } else {
-                // No chart to save — just quit
                 NotificationCenter.default.post(name: .forceQuitAllowed, object: nil)
                 NSApp.terminate(nil)
             }
@@ -76,36 +87,63 @@ struct ContentView: View {
     @ViewBuilder
     private var sidebar: some View {
         List(selection: $viewModel.selectedSection) {
-            if viewModel.hasCalculated {
-                // Summary header
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(viewModel.name)
-                        .font(.headline)
-                    if let lagna = viewModel.chart?.lagnaSign {
-                        Text("\(lagna.name) Lagna")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+            // --- Profile Sections ---
+            if !viewModel.favoriteProfiles.isEmpty {
+                Section("Favorites") {
+                    ForEach(viewModel.favoriteProfiles) { profile in
+                        profileRow(profile)
+                            .tag(SidebarSelection.profile(profile.id))
                     }
-                    Text(viewModel.selectedLocationName)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
                 }
-                .padding(.vertical, 8)
-                .listRowSeparator(.hidden)
+            }
 
+            if !viewModel.recentProfiles.isEmpty {
+                Section("Recent") {
+                    ForEach(viewModel.recentProfiles) { profile in
+                        profileRow(profile)
+                            .tag(SidebarSelection.profile(profile.id))
+                    }
+                }
+            }
+
+            Section("All Charts") {
+                ForEach(viewModel.filteredProfiles) { profile in
+                    profileRow(profile)
+                        .tag(SidebarSelection.profile(profile.id))
+                }
+            }
+
+            // --- Chart Analysis Sections ---
+            if viewModel.hasCalculated {
                 Section("Chart Analysis") {
+                    // Summary header
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(viewModel.name)
+                            .font(.headline)
+                        if let lagna = viewModel.chart?.lagnaSign {
+                            Text("\(lagna.name) Lagna")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Text(viewModel.selectedLocationName)
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.vertical, 4)
+                    .listRowSeparator(.hidden)
+
                     ForEach(ChartSection.allCases) { section in
                         Label(section.rawValue, systemImage: section.icon)
-                            .tag(section)
+                            .tag(SidebarSelection.section(section))
                     }
                 }
             }
         }
         .listStyle(.sidebar)
+        .searchable(text: $viewModel.searchText, prompt: "Search charts...")
         .navigationTitle("VedicAstro")
         .toolbar {
-            ToolbarItemGroup(placement: .automatic) {
-                // New Chart
+            ToolbarItem(placement: .primaryAction) {
                 Button {
                     if viewModel.isDirty {
                         viewModel.showingSaveBeforeNewAlert = true
@@ -115,8 +153,22 @@ struct ContentView: View {
                 } label: {
                     Label("New Chart", systemImage: "plus.circle")
                 }
+                .keyboardShortcut("n", modifiers: .command)
+            }
 
-                // Edit current
+            ToolbarItem(placement: .secondaryAction) {
+                Menu {
+                    Picker("Sort By", selection: $viewModel.sortOrder) {
+                        ForEach(ProfileSortOrder.allCases) { order in
+                            Text(order.rawValue).tag(order)
+                        }
+                    }
+                } label: {
+                    Label("Sort", systemImage: "arrow.up.arrow.down")
+                }
+            }
+
+            ToolbarItem(placement: .secondaryAction) {
                 if viewModel.hasCalculated {
                     Button {
                         viewModel.showingInputSheet = true
@@ -124,36 +176,25 @@ struct ContentView: View {
                         Label("Edit", systemImage: "pencil.circle")
                     }
                 }
+            }
 
-                // Saved Charts
+            ToolbarItem(placement: .secondaryAction) {
                 Menu {
-                    Button {
-                        viewModel.loadSavedProfiles()
-                        viewModel.showingSavedCharts = true
-                    } label: {
-                        Label("Saved Charts", systemImage: "folder")
-                    }
                     Button {
                         viewModel.openProfileFromFile()
                     } label: {
                         Label("Open from File...", systemImage: "doc.badge.arrow.up")
                     }
-                } label: {
-                    Label("Saved", systemImage: "folder")
-                }
 
-                // Save current profile
-                if viewModel.hasCalculated {
-                    Button {
-                        viewModel.saveCurrentProfile()
-                    } label: {
-                        Label("Save", systemImage: "square.and.arrow.down")
-                    }
-                }
+                    Divider()
 
-                // Export
-                if viewModel.hasCalculated {
-                    Menu {
+                    if viewModel.hasCalculated {
+                        Button {
+                            viewModel.saveCurrentProfile()
+                        } label: {
+                            Label("Save", systemImage: "square.and.arrow.down")
+                        }
+
                         Button {
                             saveFile(type: "json")
                         } label: {
@@ -164,12 +205,52 @@ struct ContentView: View {
                         } label: {
                             Label("Export Markdown", systemImage: "doc.richtext")
                         }
-                    } label: {
-                        Label("Export", systemImage: "square.and.arrow.up")
+                    }
+                } label: {
+                    Label("File", systemImage: "doc")
+                }
+            }
+        }
+        .onChange(of: viewModel.selectedSection) { _, newValue in
+            if case .profile(let id) = newValue {
+                if let profile = viewModel.savedProfiles.first(where: { $0.id == id }) {
+                    viewModel.loadProfile(profile)
+                    viewModel.updateLastOpened(profile)
+                    Task {
+                        await viewModel.calculate()
+                        viewModel.selectedSection = .section(.dashboard)
                     }
                 }
             }
         }
+    }
+
+    // MARK: - Profile Row
+
+    private func profileRow(_ profile: SavedChartProfile) -> some View {
+        ProfileRowView(
+            profile: profile,
+            onLoad: {
+                viewModel.loadProfile(profile)
+                viewModel.updateLastOpened(profile)
+                viewModel.showingInputSheet = true
+            },
+            onCalculate: {
+                viewModel.loadProfile(profile)
+                viewModel.updateLastOpened(profile)
+                Task { await viewModel.calculate() }
+            },
+            onToggleFavorite: {
+                viewModel.toggleFavorite(profile)
+            },
+            onDuplicate: {
+                viewModel.duplicateProfile(profile)
+            },
+            onDelete: {
+                viewModel.profileToDelete = profile
+                viewModel.showDeleteConfirmation = true
+            }
+        )
     }
 
     // MARK: - Detail
@@ -190,50 +271,46 @@ struct ContentView: View {
         } else {
             Group {
                 switch viewModel.selectedSection {
-                case .dashboard:
-                    DashboardView(viewModel: viewModel)
-                case .rasiChart:
-                    RasiChartView(viewModel: viewModel)
-                case .divisionalCharts:
-                    DivisionalChartsView(viewModel: viewModel)
-                case .vimshottariDasha:
-                    DashaView(viewModel: viewModel)
-                case .ashtakavarga:
-                    AshtakavargaView(viewModel: viewModel)
-                case .shadbala:
-                    ShadbalaView(viewModel: viewModel)
-                case .jaimini:
-                    JaiminiView(viewModel: viewModel)
-                case .specialPoints:
-                    SpecialPointsView(viewModel: viewModel)
-                case .none:
-                    DashboardView(viewModel: viewModel)
+                case .section(let section):
+                    chartAnalysisView(for: section)
+                case .profile, .none:
+                    chartAnalysisView(for: .dashboard)
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func chartAnalysisView(for section: ChartSection) -> some View {
+        switch section {
+        case .dashboard:
+            DashboardView(viewModel: viewModel)
+        case .rasiChart:
+            RasiChartView(viewModel: viewModel)
+        case .divisionalCharts:
+            DivisionalChartsView(viewModel: viewModel)
+        case .vimshottariDasha:
+            DashaView(viewModel: viewModel)
+        case .ashtakavarga:
+            AshtakavargaView(viewModel: viewModel)
+        case .shadbala:
+            ShadbalaView(viewModel: viewModel)
+        case .jaimini:
+            JaiminiView(viewModel: viewModel)
+        case .specialPoints:
+            SpecialPointsView(viewModel: viewModel)
         }
     }
 
     // MARK: - Welcome View
 
     private var welcomeView: some View {
-        VStack(spacing: 24) {
-            Spacer()
-
-            Image(systemName: "sparkles")
-                .font(.system(size: 64))
-                .foregroundStyle(.linearGradient(
-                    colors: [.orange, .pink, .purple],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ))
-
-            Text("VedicAstro")
-                .font(.largeTitle.bold())
-
+        ContentUnavailableView {
+            Label("VedicAstro", systemImage: "sparkles")
+                .font(.largeTitle)
+        } description: {
             Text("Vedic Astrology Chart Calculator")
-                .font(.title3)
-                .foregroundStyle(.secondary)
-
+        } actions: {
             Button {
                 viewModel.showingInputSheet = true
             } label: {
@@ -244,10 +321,7 @@ struct ContentView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-
-            Spacer()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Export
