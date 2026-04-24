@@ -154,6 +154,7 @@ final class ChartViewModel {
     var isCalculating = false
     var hasCalculated = false
     var isDirty = false
+    var loadedProfileID: UUID?
     var statusMessage = ""
     var errorMessage: String?
 
@@ -328,7 +329,20 @@ final class ChartViewModel {
             self.pushkara = computedPushkara
             self.chartExport = export
             self.hasCalculated = true
-            self.isDirty = true
+            if self.loadedProfileID == nil {
+                // Check if current data matches an existing saved profile
+                if let match = self.savedProfiles.first(where: { p in
+                    p.name == self.name && p.year == self.year && p.month == self.month &&
+                    p.day == self.day && p.hour == self.hour && p.minute == self.minute &&
+                    p.second == self.second && p.latitude == self.latitude &&
+                    p.longitude == self.longitude
+                }) {
+                    self.loadedProfileID = match.id
+                    self.isDirty = false
+                } else {
+                    self.isDirty = true
+                }
+            }
             self.statusMessage = "Chart calculated successfully"
             self.showingInputSheet = false
 
@@ -538,6 +552,8 @@ final class ChartViewModel {
         locationQuery = profile.locationName
         locationResults = []
         errorMessage = nil
+        loadedProfileID = profile.id
+        isDirty = false
     }
 
     /// Load a profile from a user-chosen file via open panel.
@@ -665,6 +681,7 @@ final class ChartViewModel {
         selectedLocationName = ""
         locationResults = []
 
+        loadedProfileID = nil
         selectedSection = .section(.dashboard)
         showingInputSheet = true
     }
