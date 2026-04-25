@@ -287,6 +287,8 @@ struct ContentView: View {
             DashboardView(viewModel: viewModel)
         case .rasiChart:
             RasiChartView(viewModel: viewModel)
+        case .bhavaChalit:
+            BhavaChalitView(viewModel: viewModel)
         case .divisionalCharts:
             DivisionalChartsView(viewModel: viewModel)
         case .vimshottariDasha:
@@ -297,6 +299,8 @@ struct ContentView: View {
             ShadbalaView(viewModel: viewModel)
         case .jaimini:
             JaiminiView(viewModel: viewModel)
+        case .transits:
+            TransitView(viewModel: viewModel)
         case .specialPoints:
             SpecialPointsView(viewModel: viewModel)
         }

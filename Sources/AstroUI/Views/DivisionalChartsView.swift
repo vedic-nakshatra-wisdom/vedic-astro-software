@@ -82,8 +82,9 @@ struct DivisionalChartsView: View {
                             .frame(width: 70, alignment: .leading)
 
                         ForEach(sorted, id: \.vargaType) { varga in
-                            Text(varga.ascendantSign?.shortName ?? "—")
-                                .font(.system(.caption2, design: .monospaced))
+                            Text(varga.ascendantSign.map { "\($0.number)" } ?? "—")
+                                .font(.system(.caption2, design: .monospaced).bold())
+                                .foregroundStyle(signTextColor(varga.ascendantSign))
                                 .frame(width: 42, height: 24)
                                 .background(.orange.opacity(0.1))
                                 .clipShape(RoundedRectangle(cornerRadius: 3))
@@ -106,8 +107,9 @@ struct DivisionalChartsView: View {
 
                             ForEach(sorted, id: \.vargaType) { varga in
                                 let sign = varga.placements[planet]
-                                Text(sign?.shortName ?? "—")
-                                    .font(.system(.caption2, design: .monospaced))
+                                Text(sign.map { "\($0.number)" } ?? "—")
+                                    .font(.system(.caption2, design: .monospaced).bold())
+                                    .foregroundStyle(signTextColor(sign))
                                     .frame(width: 42, height: 24)
                                     .background(signBackground(sign))
                                     .clipShape(RoundedRectangle(cornerRadius: 3))
@@ -123,6 +125,16 @@ struct DivisionalChartsView: View {
     }
 
     // MARK: - Helpers
+
+    private func signTextColor(_ sign: Sign?) -> Color {
+        guard let sign else { return .primary }
+        switch sign.element {
+        case .fire:  return .red
+        case .earth: return .brown
+        case .air:   return .teal
+        case .water: return .blue
+        }
+    }
 
     private func signBackground(_ sign: Sign?) -> Color {
         guard let sign else { return .clear }

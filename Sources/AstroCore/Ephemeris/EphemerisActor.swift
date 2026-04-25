@@ -95,6 +95,45 @@ public actor EphemerisActor {
         return HouseResult(cusps: houseCusps, ascendant: ascmc[0], mc: ascmc[1])
     }
 
+    /// Calculate sunrise or sunset time using swe_rise_trans.
+    /// - Parameters:
+    ///   - julianDay: Julian Day in UT (typically start of the day or birth time)
+    ///   - latitude: Geographic latitude (North positive)
+    ///   - longitude: Geographic longitude (East positive)
+    ///   - altitude: Altitude in meters (0 for sea level)
+    ///   - rise: true for sunrise, false for sunset
+    /// - Returns: Julian Day of the event, or nil on error
+    public func riseTransUT(
+        julianDay: Double,
+        latitude: Double,
+        longitude: Double,
+        altitude: Double = 0,
+        rise: Bool = true
+    ) -> Double? {
+        var geopos = [longitude, latitude, altitude]
+        var tret: Double = 0
+        var serr = [CChar](repeating: 0, count: 256)
+        let rsmi: Int32 = rise ? SE_CALC_RISE : SE_CALC_SET
+        let flags = SEFLG_SWIEPH
+        let result = swe_rise_trans(
+            julianDay, SE_SUN, nil, flags, rsmi,
+            &geopos, 0, 0, &tret, &serr
+        )
+        guard result >= 0 else { return nil }
+        return tret
+    }
+
+    /// Calculate tropical (Sayana) position of a celestial body.
+    /// Same as calcUT but without SEFLG_SIDEREAL — returns tropical longitude.
+    public func calcTropicalUT(body: Int32, at julianDay: Double) -> (longitude: Double, latitude: Double, distance: Double, speedLon: Double)? {
+        var xx = [Double](repeating: 0, count: 6)
+        var serr = [CChar](repeating: 0, count: 256)
+        let flags = SEFLG_SPEED  // No SEFLG_SIDEREAL = tropical
+        let result = swe_calc_ut(julianDay, body, flags, &xx, &serr)
+        guard result >= 0 else { return nil }
+        return (xx[0], xx[1], xx[2], xx[3])
+    }
+
     /// Close the Swiss Ephemeris and free resources.
     public func close() {
         swe_close()

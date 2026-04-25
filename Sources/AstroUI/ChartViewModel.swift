@@ -7,11 +7,13 @@ import CoreLocation
 enum ChartSection: String, CaseIterable, Identifiable {
     case dashboard = "Dashboard"
     case rasiChart = "Rasi Chart (D1)"
+    case bhavaChalit = "Bhava Chalit"
     case divisionalCharts = "Divisional Charts"
     case vimshottariDasha = "Vimshottari Dasha"
     case ashtakavarga = "Ashtakavarga"
     case shadbala = "Shadbala"
     case jaimini = "Jaimini System"
+    case transits = "Current Transits"
     case specialPoints = "Special Points"
 
     var id: String { rawValue }
@@ -20,11 +22,13 @@ enum ChartSection: String, CaseIterable, Identifiable {
         switch self {
         case .dashboard: return "chart.pie"
         case .rasiChart: return "circle.grid.3x3"
+        case .bhavaChalit: return "square.split.diagonal"
         case .divisionalCharts: return "square.grid.4x3.fill"
         case .vimshottariDasha: return "calendar.badge.clock"
         case .ashtakavarga: return "number.square"
         case .shadbala: return "chart.bar"
         case .jaimini: return "person.3"
+        case .transits: return "arrow.triangle.2.circlepath"
         case .specialPoints: return "mappin.and.ellipse"
         }
     }
@@ -158,6 +162,10 @@ final class ChartViewModel {
     var statusMessage = ""
     var errorMessage: String?
 
+    // MARK: - Transit Results
+    var transitPositions: [Planet: PlanetaryPosition]?
+    var transitDate: Date?
+
     // MARK: - Computed Results
     var chart: BirthChart?
     var vargas: [VargaChart] = []
@@ -169,6 +177,7 @@ final class ChartViewModel {
     var arudhaLagna: ArudhaLagnaResult?
     var bhriguBindu: BhriguBinduResult?
     var pushkara: PushkaraResult?
+    var bhavaChalit: BhavaChalitResult?
     var chartExport: ChartExport?
 
     // MARK: - Validation
@@ -295,6 +304,7 @@ final class ChartViewModel {
             let computedArudha = ArudhaLagnaCalculator().compute(from: computedChart)
             let computedBB = BhriguBinduCalculator().compute(from: computedChart, ashtakavarga: computedAshtakavarga)
             let computedPushkara = PushkaraCalculator().compute(from: computedChart)
+            let computedBhavaChalit = BhavaChalitCalculator().compute(from: computedChart)
 
             var computedIshta: IshtaDevtaResult?
             if let k = computedKarakas {
@@ -313,7 +323,8 @@ final class ChartViewModel {
                 ishtaDevta: computedIshta,
                 arudhaLagna: computedArudha,
                 bhriguBindu: computedBB,
-                pushkara: computedPushkara
+                pushkara: computedPushkara,
+                bhavaChalit: computedBhavaChalit
             )
 
             // Update state
@@ -327,6 +338,7 @@ final class ChartViewModel {
             self.arudhaLagna = computedArudha
             self.bhriguBindu = computedBB
             self.pushkara = computedPushkara
+            self.bhavaChalit = computedBhavaChalit
             self.chartExport = export
             self.hasCalculated = true
             if self.loadedProfileID == nil {
@@ -378,6 +390,73 @@ final class ChartViewModel {
         } else {
             self.ishtaDevta = nil
         }
+    }
+
+    // MARK: - Transit Computation
+
+    func computeTransits() async {
+        guard chart != nil else { return }
+        let now = Date()
+        let ephemeris = EphemerisActor()
+        await ephemeris.initialize(ephemerisPath: nil)
+        await ephemeris.setSiderealMode(AyanamsaType.lahiri.seMode)
+
+        let calendar = Calendar(identifier: .gregorian)
+        var utcCal = calendar
+        utcCal.timeZone = TimeZone(identifier: "UTC")!
+        let comps = utcCal.dateComponents([.year, .month, .day, .hour, .minute, .second], from: now)
+        let utHour = Double(comps.hour ?? 0) + Double(comps.minute ?? 0) / 60.0 + Double(comps.second ?? 0) / 3600.0
+
+        let jd = await ephemeris.julianDay(
+            year: Int32(comps.year ?? 2026),
+            month: Int32(comps.month ?? 1),
+            day: Int32(comps.day ?? 1),
+            hour: utHour
+        )
+
+        var positions: [Planet: PlanetaryPosition] = [:]
+        for planet in Planet.allCases {
+            if planet == .ketu {
+                if let rahuPos = positions[.rahu] {
+                    let ketuLon = (rahuPos.longitude + 180.0).truncatingRemainder(dividingBy: 360.0)
+                    positions[.ketu] = .from(
+                        planet: .ketu,
+                        longitude: ketuLon,
+                        latitude: -rahuPos.latitude,
+                        distance: rahuPos.distance,
+                        speedLongitude: rahuPos.speedLongitude
+                    )
+                }
+            } else {
+                let seBody: Int32
+                if planet == .rahu {
+                    seBody = NodeType.trueNode.seBody
+                } else {
+                    seBody = planet.seBody!
+                }
+                if let result = await ephemeris.calcUT(body: seBody, at: jd) {
+                    positions[planet] = .from(
+                        planet: planet,
+                        longitude: result.longitude,
+                        latitude: result.latitude,
+                        distance: result.distance,
+                        speedLongitude: result.speedLon
+                    )
+                }
+            }
+        }
+
+        await ephemeris.close()
+        self.transitPositions = positions
+        self.transitDate = now
+    }
+
+    /// Get the natal house number (1-12) for a transit planet's longitude
+    func transitHouse(for planet: Planet) -> Int? {
+        guard let lagnaIndex = chart?.ascendant?.signIndex,
+              let transitPos = transitPositions?[planet] else { return nil }
+        let planetIndex = transitPos.signIndex
+        return ((planetIndex - lagnaIndex + 12) % 12) + 1
     }
 
     // MARK: - Dasha Helpers
@@ -505,12 +584,16 @@ final class ChartViewModel {
             panel.directoryURL = Self.lastSaveDirectory ?? Self.profilesDirectory
             panel.begin { [weak self] response in
                 if response == .OK, let url = panel.url {
-                    try? data.write(to: url, options: .atomic)
-                    Self.lastSaveDirectory = url.deletingLastPathComponent()
+                    let chosenDir = url.deletingLastPathComponent().standardizedFileURL
+                    let internalDir = Self.profilesDirectory.standardizedFileURL
                     let internalURL = Self.profilesDirectory.appendingPathComponent(internalFilename)
-                    if internalURL != url {
-                        try? data.write(to: internalURL, options: .atomic)
+                    // Always write to internal profiles directory
+                    try? data.write(to: internalURL, options: .atomic)
+                    // Only write to user-chosen location if it's outside the internal directory
+                    if chosenDir != internalDir {
+                        try? data.write(to: url, options: .atomic)
                     }
+                    Self.lastSaveDirectory = url.deletingLastPathComponent()
                     Task { @MainActor in
                         self?.isDirty = false
                         self?.loadSavedProfiles()
@@ -525,12 +608,12 @@ final class ChartViewModel {
         #endif
 
         // Silent save (fallback)
-        let dir = Self.lastSaveDirectory ?? Self.profilesDirectory
-        let url = dir.appendingPathComponent(defaultFilename)
-        try? data.write(to: url, options: .atomic)
         let internalURL = Self.profilesDirectory.appendingPathComponent(internalFilename)
-        if internalURL != url {
-            try? data.write(to: internalURL, options: .atomic)
+        try? data.write(to: internalURL, options: .atomic)
+        let dir = Self.lastSaveDirectory ?? Self.profilesDirectory
+        if dir.standardizedFileURL != Self.profilesDirectory.standardizedFileURL {
+            let url = dir.appendingPathComponent(defaultFilename)
+            try? data.write(to: url, options: .atomic)
         }
         isDirty = false
         loadSavedProfiles()
@@ -661,6 +744,7 @@ final class ChartViewModel {
         arudhaLagna = nil
         bhriguBindu = nil
         pushkara = nil
+        bhavaChalit = nil
         chartExport = nil
         hasCalculated = false
         statusMessage = ""

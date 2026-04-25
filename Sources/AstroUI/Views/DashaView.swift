@@ -4,6 +4,7 @@ import AstroCore
 struct DashaView: View {
     let viewModel: ChartViewModel
     @State private var expandedMaha: Planet?
+    @State private var expandedAntar: String?  // "Maha-Antar" key
 
     var body: some View {
         ScrollView {
@@ -123,28 +124,71 @@ struct DashaView: View {
             if expandedMaha == maha.planet && !maha.subPeriods.isEmpty {
                 VStack(spacing: 0) {
                     ForEach(Array(maha.subPeriods.enumerated()), id: \.offset) { _, antar in
-                        HStack(spacing: 12) {
-                            Spacer().frame(width: 24)
-                            Circle()
-                                .fill(planetColor(antar.planet))
-                                .frame(width: 6, height: 6)
-                            Text(antar.planet.rawValue)
-                                .font(.caption)
-                                .frame(width: 60, alignment: .leading)
-                            Spacer()
-                            Text(formatted(antar.startDate))
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                            Text("—")
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
-                            Text(formatted(antar.endDate))
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
+                        let antarKey = "\(maha.planet.rawValue)-\(antar.planet.rawValue)"
+                        VStack(spacing: 0) {
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    expandedAntar = expandedAntar == antarKey ? nil : antarKey
+                                }
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Spacer().frame(width: 24)
+                                    Circle()
+                                        .fill(planetColor(antar.planet))
+                                        .frame(width: 6, height: 6)
+                                    Text(antar.planet.rawValue)
+                                        .font(.caption)
+                                        .frame(width: 60, alignment: .leading)
+                                    Spacer()
+                                    Text(formatted(antar.startDate))
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                    Text("—")
+                                        .font(.caption2)
+                                        .foregroundStyle(.tertiary)
+                                    Text(formatted(antar.endDate))
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                    Image(systemName: expandedAntar == antarKey ? "chevron.up" : "chevron.down")
+                                        .font(.system(size: 8))
+                                        .foregroundStyle(.tertiary)
+                                }
+                                .padding(.vertical, 4)
+                                .padding(.horizontal, 12)
+                                .background(isAntarActive(antar) ? planetColor(antar.planet).opacity(0.05) : .clear)
+                            }
+                            .buttonStyle(.plain)
+
+                            // Expanded pratyantar dashas
+                            if expandedAntar == antarKey && !antar.subPeriods.isEmpty {
+                                VStack(spacing: 0) {
+                                    ForEach(Array(antar.subPeriods.enumerated()), id: \.offset) { _, prat in
+                                        HStack(spacing: 12) {
+                                            Spacer().frame(width: 48)
+                                            Circle()
+                                                .stroke(planetColor(prat.planet), lineWidth: 1)
+                                                .frame(width: 5, height: 5)
+                                            Text(prat.planet.rawValue)
+                                                .font(.caption2)
+                                                .frame(width: 55, alignment: .leading)
+                                            Spacer()
+                                            Text(formatted(prat.startDate))
+                                                .font(.system(size: 9))
+                                                .foregroundStyle(.secondary)
+                                            Text("—")
+                                                .font(.system(size: 9))
+                                                .foregroundStyle(.tertiary)
+                                            Text(formatted(prat.endDate))
+                                                .font(.system(size: 9))
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        .padding(.vertical, 2)
+                                        .padding(.horizontal, 12)
+                                        .background(isPratyantarActive(prat) ? planetColor(prat.planet).opacity(0.05) : .clear)
+                                    }
+                                }
+                            }
                         }
-                        .padding(.vertical, 4)
-                        .padding(.horizontal, 12)
-                        .background(isAntarActive(antar) ? planetColor(antar.planet).opacity(0.05) : .clear)
                     }
                 }
                 .padding(.bottom, 8)
@@ -164,7 +208,11 @@ struct DashaView: View {
     }
 
     private func isAntarActive(_ period: DashaPeriod) -> Bool {
-        guard let path = viewModel.currentDashaPath, path.count > 1 else { return false }
+        let now = Date()
+        return period.startDate <= now && now <= period.endDate
+    }
+
+    private func isPratyantarActive(_ period: DashaPeriod) -> Bool {
         let now = Date()
         return period.startDate <= now && now <= period.endDate
     }

@@ -12,6 +12,8 @@ public struct BirthChart: Codable, Sendable {
     public let ascendant: PlanetaryPosition?
     /// House cusp longitudes (12 cusps). Nil if birth time unknown.
     public let houseCusps: [Double]?
+    /// Midheaven (MC / 10th cusp) longitude. Nil if birth time unknown.
+    public let mc: Double?
     /// House system used
     public let houseSystem: HouseSystem
     /// Ayanamsa type used

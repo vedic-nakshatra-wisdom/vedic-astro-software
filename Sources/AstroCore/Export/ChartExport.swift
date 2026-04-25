@@ -17,6 +17,9 @@ public struct ChartExport: Codable, Sendable {
     // --- Section 3: Rasi Chart (D1) ---
     public let rasiChart: RasiChartExport
 
+    // --- Section 3b: Bhava Chalit ---
+    public let bhavaChalit: BhavaChalitExport?
+
     // --- Section 4: Divisional Charts (D1–D60, sorted) ---
     public let divisionalCharts: [VargaExport]
 
@@ -41,6 +44,7 @@ public struct ChartExport: Codable, Sendable {
         case metadata
         case birthData
         case rasiChart
+        case bhavaChalit
         case divisionalCharts
         case vimshottariDasha
         case ashtakavarga
@@ -54,6 +58,7 @@ public struct ChartExport: Codable, Sendable {
         try container.encode(metadata, forKey: .metadata)
         try container.encode(birthData, forKey: .birthData)
         try container.encode(rasiChart, forKey: .rasiChart)
+        try container.encodeIfPresent(bhavaChalit, forKey: .bhavaChalit)
         try container.encode(divisionalCharts, forKey: .divisionalCharts)
         try container.encodeIfPresent(vimshottariDasha, forKey: .vimshottariDasha)
         try container.encodeIfPresent(ashtakavarga, forKey: .ashtakavarga)
@@ -275,6 +280,25 @@ public struct VimshottariDashaExport: Codable, Sendable {
         public let planet: String
         public let startDate: Date
         public let endDate: Date
+        public let pratyantarDashas: [PratyantarDashaExport]
+
+        enum CodingKeys: String, CodingKey {
+            case planet, startDate, endDate, pratyantarDashas
+        }
+
+        public func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(planet, forKey: .planet)
+            try container.encode(startDate, forKey: .startDate)
+            try container.encode(endDate, forKey: .endDate)
+            try container.encode(pratyantarDashas, forKey: .pratyantarDashas)
+        }
+    }
+
+    public struct PratyantarDashaExport: Codable, Sendable {
+        public let planet: String
+        public let startDate: Date
+        public let endDate: Date
 
         enum CodingKeys: String, CodingKey {
             case planet, startDate, endDate
@@ -355,6 +379,42 @@ public struct IshtaDevtaExport: Codable, Sendable {
         try container.encode(planetsInTwelfth, forKey: .planetsInTwelfth)
         try container.encode(significator, forKey: .significator)
         try container.encode(deity, forKey: .deity)
+    }
+}
+
+public struct BhavaChalitExport: Codable, Sendable {
+    public let cusps: [Double]
+    public let madhyas: [Double]
+    public let planets: [BhavaChalitPlanetExport]
+
+    public struct BhavaChalitPlanetExport: Codable, Sendable {
+        public let planet: String
+        public let rasiHouse: Int?
+        public let bhavaHouse: Int
+        public let shifted: Bool
+
+        enum CodingKeys: String, CodingKey {
+            case planet, rasiHouse, bhavaHouse, shifted
+        }
+
+        public func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(planet, forKey: .planet)
+            try container.encodeIfPresent(rasiHouse, forKey: .rasiHouse)
+            try container.encode(bhavaHouse, forKey: .bhavaHouse)
+            try container.encode(shifted, forKey: .shifted)
+        }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case cusps, madhyas, planets
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(cusps, forKey: .cusps)
+        try container.encode(madhyas, forKey: .madhyas)
+        try container.encode(planets, forKey: .planets)
     }
 }
 

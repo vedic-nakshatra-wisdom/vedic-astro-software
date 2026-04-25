@@ -73,7 +73,8 @@ struct RasiChartView: View {
                                             Text(planet.rawValue)
                                                 .fontWeight(.semibold)
                                         }
-                                        Text(pos.sign.name)
+                                        Text("\(pos.sign.number)")
+                                            .foregroundStyle(signColor(pos.sign))
                                         Text(String(format: "%.4f", pos.longitude) + "\u{00B0}")
                                             .font(.system(.body, design: .monospaced))
                                             .foregroundStyle(.secondary)
@@ -113,6 +114,15 @@ struct RasiChartView: View {
                 .foregroundStyle(.secondary)
             Text(value)
                 .font(.body.bold())
+        }
+    }
+
+    private func signColor(_ sign: Sign) -> Color {
+        switch sign.element {
+        case .fire:  return .red
+        case .earth: return .brown
+        case .air:   return .teal
+        case .water: return .blue
         }
     }
 

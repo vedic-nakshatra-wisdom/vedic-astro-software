@@ -69,6 +69,9 @@ public struct ChartCalculator: Sendable {
         // 5. Compute houses and ascendant (only if birth time is known)
         var ascendant: PlanetaryPosition? = nil
         var houseCusps: [Double]? = nil
+        var mcLongitude: Double? = nil
+        var sunrise: Date? = nil
+        var sunset: Date? = nil
 
         if birthData.hasBirthTime {
             if let houses = await ephemeris.calcHouses(
@@ -78,6 +81,7 @@ public struct ChartCalculator: Sendable {
                 houseSystem: houseSystem.seCode
             ) {
                 houseCusps = houses.cusps
+                mcLongitude = houses.mc
                 ascendant = PlanetaryPosition(
                     planet: .sun, // placeholder -- ascendant is not a planet
                     longitude: houses.ascendant,
@@ -85,6 +89,27 @@ public struct ChartCalculator: Sendable {
                     speedLongitude: 0,
                     distance: 0
                 )
+            }
+
+            // 5b. Compute sunrise/sunset for birth day
+            // Use start of day (floor JD to noon - 0.5) to find sunrise
+            let jdStartOfDay = floor(jd - 0.5) + 0.5  // Previous UT noon
+            if let sunriseJD = await ephemeris.riseTransUT(
+                julianDay: jdStartOfDay,
+                latitude: birthData.latitude,
+                longitude: birthData.longitude,
+                rise: true
+            ) {
+                // Convert JD to Date: JD 2451545.0 = 2000-01-01 12:00 UT
+                sunrise = Self.dateFromJD(sunriseJD)
+            }
+            if let sunsetJD = await ephemeris.riseTransUT(
+                julianDay: jdStartOfDay,
+                latitude: birthData.latitude,
+                longitude: birthData.longitude,
+                rise: false
+            ) {
+                sunset = Self.dateFromJD(sunsetJD)
             }
         }
 
@@ -95,12 +120,24 @@ public struct ChartCalculator: Sendable {
             planets: positions,
             ascendant: ascendant,
             houseCusps: houseCusps,
+            mc: mcLongitude,
             houseSystem: houseSystem,
+
             ayanamsaType: ayanamsa,
             ayanamsaValue: ayanamsaValue,
             nodeType: nodeType,
-            sunrise: nil,  // TODO: v0.2
-            sunset: nil    // TODO: v0.2
+            sunrise: sunrise,
+            sunset: sunset
         )
+    }
+
+    /// Convert a Julian Day to a Swift Date.
+    private static func dateFromJD(_ jd: Double) -> Date {
+        // JD 2451545.0 = 2000-01-01 12:00:00 UT (J2000 epoch)
+        let j2000: Double = 2451545.0
+        let secondsSinceJ2000 = (jd - j2000) * 86400.0
+        // J2000 in Unix time = 946728000 (2000-01-01 12:00:00 UTC)
+        let unixTime = 946728000.0 + secondsSinceJ2000
+        return Date(timeIntervalSince1970: unixTime)
     }
 }

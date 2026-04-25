@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "vedicastro-chart-export-v0.5",
   "title": "VedicAstro Chart Export",
-  "description": "Complete Vedic astrology birth chart export from VedicAstro engine v0.5. Contains D1 rasi chart, 16 divisional charts, Vimshottari Dasha, Ashtakavarga, Shadbala, Jaimini system, and special points.",
+  "description": "Complete Vedic astrology birth chart export from VedicAstro engine v0.5. Contains D1 rasi chart, Bhava Chalit, 16 divisional charts, Vimshottari Dasha, Ashtakavarga, Shadbala, Jaimini system, and special points.",
   "type": "object",
   "properties": {
 
@@ -130,7 +130,19 @@
                   "properties": {
                     "planet": { "type": "string" },
                     "startDate": { "type": "string", "format": "date-time" },
-                    "endDate": { "type": "string", "format": "date-time" }
+                    "endDate": { "type": "string", "format": "date-time" },
+                    "pratyantarDashas": {
+                      "description": "Sub-sub-periods within this Antar Dasha (9 per Antar)",
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "planet": { "type": "string" },
+                          "startDate": { "type": "string", "format": "date-time" },
+                          "endDate": { "type": "string", "format": "date-time" }
+                        }
+                      }
+                    }
                   }
                 }
               }
@@ -237,6 +249,36 @@
             "arudhas": {
               "description": "House number (1-12) → Sign name mapping. Key houses: 1=Pada Lagna (AL), 7=Darapada, 12=Upapada (UL).",
               "type": "object"
+            }
+          }
+        }
+      }
+    },
+
+    "bhavaChalit": {
+      "description": "Bhava Chalit chart — equal house system where the Ascendant is the midpoint of the 1st bhava. Each bhava spans exactly 30°. Planets may shift houses compared to Rasi (whole sign) chart.",
+      "type": ["object", "null"],
+      "properties": {
+        "cusps": {
+          "description": "12 bhava sandhi (cusp start) longitudes in degrees. Cusp N = Asc + (N-1)*30 - 15°.",
+          "type": "array",
+          "items": { "type": "number" }
+        },
+        "madhyas": {
+          "description": "12 bhava midpoint longitudes in degrees. Madhya N = Asc + (N-1)*30°.",
+          "type": "array",
+          "items": { "type": "number" }
+        },
+        "planets": {
+          "description": "Planet placements in bhava houses, with shift detection",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "planet": { "type": "string", "description": "Planet name" },
+              "rasiHouse": { "type": ["integer", "null"], "description": "Whole sign house (1-12). Null if no birth time." },
+              "bhavaHouse": { "type": "integer", "description": "Bhava Chalit house (1-12)" },
+              "shifted": { "type": "boolean", "description": "True if planet shifted houses from Rasi to Bhava Chalit" }
             }
           }
         }

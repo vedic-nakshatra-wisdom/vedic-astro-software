@@ -54,7 +54,7 @@ public enum NodeType: String, Codable, Sendable {
     case meanNode = "Mean Node"
 
     /// Swiss Ephemeris body constant for Rahu
-    internal var seBody: Int32 {
+    public var seBody: Int32 {
         switch self {
         case .trueNode: return 11  // SE_TRUE_NODE
         case .meanNode: return 10  // SE_MEAN_NODE

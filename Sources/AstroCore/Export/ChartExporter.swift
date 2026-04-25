@@ -17,6 +17,7 @@ public struct ChartExporter: Sendable {
         arudhaLagna: ArudhaLagnaResult? = nil,
         bhriguBindu: BhriguBinduResult? = nil,
         pushkara: PushkaraResult? = nil,
+        bhavaChalit: BhavaChalitResult? = nil,
         currentDate: Date = Date()
     ) -> ChartExport {
 
@@ -112,7 +113,14 @@ public struct ChartExporter: Sendable {
                         VimshottariDashaExport.AntarDashaExport(
                             planet: antar.planet.rawValue,
                             startDate: antar.startDate,
-                            endDate: antar.endDate
+                            endDate: antar.endDate,
+                            pratyantarDashas: antar.subPeriods.map { prat in
+                                VimshottariDashaExport.PratyantarDashaExport(
+                                    planet: prat.planet.rawValue,
+                                    startDate: prat.startDate,
+                                    endDate: prat.endDate
+                                )
+                            }
                         )
                     }
                 )
@@ -165,10 +173,34 @@ public struct ChartExporter: Sendable {
             specialExport = nil
         }
 
+        // 10. Bhava Chalit
+        let chalitExport: BhavaChalitExport?
+        if let chalit = bhavaChalit {
+            let planetOrder: [Planet] = [.sun, .moon, .mars, .mercury, .jupiter, .venus, .saturn, .rahu, .ketu]
+            let planetExports = planetOrder.compactMap { planet -> BhavaChalitExport.BhavaChalitPlanetExport? in
+                guard let bhava = chalit.planetBhava[planet] else { return nil }
+                let rasi = chart.house(of: planet)
+                return BhavaChalitExport.BhavaChalitPlanetExport(
+                    planet: planet.rawValue,
+                    rasiHouse: rasi,
+                    bhavaHouse: bhava,
+                    shifted: chalit.hasShifted(planet: planet, rasiHouse: rasi)
+                )
+            }
+            chalitExport = BhavaChalitExport(
+                cusps: chalit.cusps,
+                madhyas: chalit.madhyas,
+                planets: planetExports
+            )
+        } else {
+            chalitExport = nil
+        }
+
         return ChartExport(
             metadata: metadata,
             birthData: birthDataExport,
             rasiChart: rasiChart,
+            bhavaChalit: chalitExport,
             divisionalCharts: vargaExports,
             vimshottariDasha: dashaExport,
             ashtakavarga: ashtakavarga,
@@ -429,16 +461,21 @@ public struct ChartExporter: Sendable {
             }
             md += "\n"
 
-            md += "### Antar Dasha Breakdown\n\n"
+            md += "### Antar & Pratyantar Dasha Breakdown\n\n"
             for maha in dasha.mahaDashas {
                 if maha.antarDashas.isEmpty { continue }
                 md += "**\(maha.planet) Maha Dasha**\n\n"
-                md += "| Antar | Start | End |\n"
-                md += "|-------|-------|-----|\n"
                 for antar in maha.antarDashas {
-                    md += "| \(antar.planet) | \(dashaDF.string(from: antar.startDate)) | \(dashaDF.string(from: antar.endDate)) |\n"
+                    md += "**\(maha.planet)/\(antar.planet)** (\(dashaDF.string(from: antar.startDate)) to \(dashaDF.string(from: antar.endDate)))\n\n"
+                    if !antar.pratyantarDashas.isEmpty {
+                        md += "| Pratyantar | Start | End |\n"
+                        md += "|------------|-------|-----|\n"
+                        for prat in antar.pratyantarDashas {
+                            md += "| \(prat.planet) | \(dashaDF.string(from: prat.startDate)) | \(dashaDF.string(from: prat.endDate)) |\n"
+                        }
+                        md += "\n"
+                    }
                 }
-                md += "\n"
             }
         }
 

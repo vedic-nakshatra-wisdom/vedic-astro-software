@@ -113,15 +113,10 @@ struct NorthIndianChartView: View {
         let isKendra = [1, 4, 7, 10].contains(house)
 
         VStack(spacing: 1) {
-            // Sign abbreviation
-            Text(sign?.shortName ?? "—")
-                .font(.system(size: isKendra ? 12 : 10, weight: .bold))
+            // Sign number (1–12)
+            Text(sign.map { "\($0.number)" } ?? "—")
+                .font(.system(size: isKendra ? 10 : 9, weight: .bold))
                 .foregroundStyle(signColor(sign))
-
-            // House number (subtle)
-            Text("\(house)")
-                .font(.system(size: 7, weight: .medium, design: .monospaced))
-                .foregroundStyle(.tertiary)
 
             // Planets in this house
             if !planets.isEmpty {
@@ -138,7 +133,7 @@ struct NorthIndianChartView: View {
                 HStack(spacing: 3) {
                     ForEach(row, id: \.self) { planet in
                         Text(planetAbbrev(planet))
-                            .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                            .font(.system(size: 11, weight: .bold, design: .monospaced))
                             .foregroundStyle(planetColor(planet))
                     }
                 }
@@ -277,8 +272,8 @@ struct NorthIndianVargaChartView: View {
     }
 
     /// Adaptive font sizes based on chart size
-    private var signFontSize: CGFloat { max(7, size * 0.028) }
-    private var planetFontSize: CGFloat { max(6, size * 0.024) }
+    private var signFontSize: CGFloat { max(6, size * 0.022) }
+    private var planetFontSize: CGFloat { max(8, size * 0.032) }
     private var titleFont: Font { size >= 300 ? .headline : .caption.bold() }
     private var lineWidth: CGFloat { size >= 300 ? 1.2 : 0.8 }
     private var borderWidth: CGFloat { size >= 300 ? 2.0 : 1.2 }
@@ -340,16 +335,19 @@ struct NorthIndianVargaChartView: View {
             .map { $0.key }
 
         VStack(spacing: 1) {
-            Text(sign?.shortName ?? "—")
-                .font(.system(size: isKendra ? signFontSize + 1 : signFontSize, weight: .bold))
+            Text(sign.map { "\($0.number)" } ?? "—")
+                .font(.system(size: isKendra ? signFontSize + 2 : signFontSize + 1, weight: .bold))
                 .foregroundStyle(signColor(sign))
 
             if !planetsInSign.isEmpty {
-                Text(planetsInSign.map { abbrev($0) }.joined(separator: " "))
-                    .font(.system(size: planetFontSize, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
+                HStack(spacing: 3) {
+                    ForEach(planetsInSign, id: \.self) { planet in
+                        Text(abbrev(planet))
+                            .font(.system(size: planetFontSize, weight: .bold, design: .monospaced))
+                            .foregroundStyle(planetColor(planet))
+                    }
+                }
+                .lineLimit(2)
             }
         }
         .frame(width: isKendra ? size * 0.26 : size * 0.18,
@@ -396,6 +394,20 @@ struct NorthIndianVargaChartView: View {
         case .earth: return .brown
         case .air:   return .teal
         case .water: return .blue
+        }
+    }
+
+    private func planetColor(_ planet: Planet) -> Color {
+        switch planet {
+        case .sun:     return .orange
+        case .moon:    return .blue
+        case .mars:    return .red
+        case .mercury: return .green
+        case .jupiter: return .yellow
+        case .venus:   return .pink
+        case .saturn:  return .gray
+        case .rahu:    return .indigo
+        case .ketu:    return .brown
         }
     }
 }

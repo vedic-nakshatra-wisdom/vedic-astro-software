@@ -154,7 +154,8 @@ struct ShadBalaTests {
         let result = ShadBalaCalculator().compute(from: chart)!
 
         for (_, bala) in result.planetBala {
-            #expect(bala.pakshaBala >= 0 && bala.pakshaBala <= 60,
+            let maxPaksha: Double = bala.planet == .moon ? 120.0 : 60.0
+            #expect(bala.pakshaBala >= 0 && bala.pakshaBala <= maxPaksha,
                     "\(bala.planet.rawValue) Paksha Bala \(bala.pakshaBala) out of range")
         }
     }
@@ -169,7 +170,8 @@ struct ShadBalaTests {
         for (_, bala) in result.planetBala {
             #expect(bala.totalVirupas > 0)
             #expect(abs(bala.totalRupas - bala.totalVirupas / 60.0) < 0.001)
-            #expect(bala.sthanaBala + bala.digBala + bala.kalaBala == bala.totalVirupas)
+            let sum = bala.sthanaBala + bala.digBala + bala.kalaBala + bala.cheshtaBala + bala.naisargikaBala + bala.drikBala
+            #expect(abs(sum - bala.totalVirupas) < 0.01)
         }
     }
 
@@ -210,20 +212,73 @@ struct ShadBalaTests {
         let chart = await swovenChart()
         let result = ShadBalaCalculator().compute(from: chart)!
 
-        print("\n=== SHADBALA (Six-fold Strength) ===\n")
-        print("Planet    | Uchcha | Ojha | Kendra | Drekk | Sthana | Dig   | Naisar | Paksha | Kala  | TOTAL  | Rupas")
-        print(String(repeating: "-", count: 115))
+        print("\n=== SHADBALA (Six-fold Strength) — Full Implementation ===\n")
 
         let order: [Planet] = [.sun, .moon, .mars, .mercury, .jupiter, .venus, .saturn]
+
+        print("--- STHANA BALA ---")
+        print("Planet    | Uchcha | SaptaV | Ojha | Kendra | Drekk | Total")
+        print(String(repeating: "-", count: 70))
         for planet in order {
             let b = result.planetBala[planet]!
-            let line = String(format: "%-9s | %5.1f  | %4.0f | %5.0f  | %4.0f  | %5.1f  | %4.1f  | %5.2f  | %5.1f  | %4.1f  | %5.1f  | %.2f",
-                              (planet.rawValue as NSString).utf8String!,
-                              b.uchchaBala, b.ojhayugmarasiBala, b.kendradiBala,
-                              b.drekkanaBala, b.sthanaBala, b.digBala,
-                              b.naisargikaBala, b.pakshaBala, b.kalaBala,
-                              b.totalVirupas, b.totalRupas)
-            print(line)
+            print(String(format: "%-9s | %5.1f  | %5.1f  | %4.0f | %5.0f   | %4.0f  | %5.1f",
+                         (planet.rawValue as NSString).utf8String!,
+                         b.uchchaBala, b.saptavargajaBala, b.ojhayugmarasiBala,
+                         b.kendradiBala, b.drekkanaBala, b.sthanaBala))
+        }
+
+        print("\n--- DIG BALA ---")
+        for planet in order {
+            let b = result.planetBala[planet]!
+            print(String(format: "%-9s | %5.1f", (planet.rawValue as NSString).utf8String!, b.digBala))
+        }
+
+        print("\n--- KALA BALA ---")
+        print("Planet    | Paksha | Naton | Tribh | Abda | Masa | Vara | Hora | Ayana | Total")
+        print(String(repeating: "-", count: 90))
+        for planet in order {
+            let b = result.planetBala[planet]!
+            print(String(format: "%-9s | %5.1f  | %4.1f  | %4.0f  | %3.0f  | %3.0f  | %3.0f  | %3.0f  | %4.1f  | %5.1f",
+                         (planet.rawValue as NSString).utf8String!,
+                         b.pakshaBala, b.natonnathaBala,
+                         b.tribhagaBala, b.abdaBala, b.masaBala,
+                         b.varaBala, b.horaBala, b.ayanaBala, b.kalaBala))
+        }
+
+        print("\n--- NAISARGIKA BALA (Natural Strength) ---")
+        for planet in order {
+            let b = result.planetBala[planet]!
+            print(String(format: "%-9s | %5.2f",
+                         (planet.rawValue as NSString).utf8String!, b.naisargikaBala))
+        }
+
+        print("\n--- CHESHTA & DRIK BALA ---")
+        for planet in order {
+            let b = result.planetBala[planet]!
+            print(String(format: "%-9s | Cheshta: %5.1f | Drik: %6.1f",
+                         (planet.rawValue as NSString).utf8String!, b.cheshtaBala, b.drikBala))
+        }
+
+        print("\n--- TOTALS ---")
+        print("Planet    | Sthana | Dig   | Kala  | Chesh | Naisr | Drik  | TOTAL  | Rupas  | Min  | Met?")
+        print(String(repeating: "-", count: 105))
+        for planet in order {
+            let b = result.planetBala[planet]!
+            let minR = ShadBalaResult.minimumRupas[planet]!
+            let met = result.meetsMinimum(planet)! ? "YES" : "NO"
+            let line = String(format: "%-9s | %5.1f  | %4.1f  | %5.1f | %4.1f  | %4.1f | %5.1f | %6.1f | %5.2f  | %4.1f | ",
+                         (planet.rawValue as NSString).utf8String!,
+                         b.sthanaBala, b.digBala, b.kalaBala,
+                         b.cheshtaBala, b.naisargikaBala, b.drikBala,
+                         b.totalVirupas, b.totalRupas, minR)
+            print(line + met)
+        }
+
+        print("\nIshta / Kashta Phala:")
+        for planet in order {
+            let b = result.planetBala[planet]!
+            print(String(format: "%-9s | Ishta: %5.1f | Kashta: %5.1f",
+                         (planet.rawValue as NSString).utf8String!, b.ishtaPhala, b.kashtaPhala))
         }
 
         print("\nStrongest: \(result.strongest!.rawValue)")

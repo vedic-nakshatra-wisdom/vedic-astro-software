@@ -38,6 +38,9 @@ public enum Sign: Int, Codable, Sendable, CaseIterable, Hashable {
         }
     }
 
+    /// Sign number (1–12): Aries=1 … Pisces=12
+    public var number: Int { rawValue + 1 }
+
     public var shortName: String {
         switch self {
         case .aries: return "Ari"

@@ -5,76 +5,78 @@ public struct PlanetShadBala: Codable, Sendable {
     public let planet: Planet
 
     // MARK: - 1. Sthana Bala (Positional Strength)
-    /// Exaltation strength (0–60 virupas)
     public let uchchaBala: Double
-    /// Saptavargaja Bala — dignity in 7 vargas (TODO: needs friendship tables)
     public let saptavargajaBala: Double
-    /// Odd/even sign + navamsa strength (0–30 virupas)
     public let ojhayugmarasiBala: Double
-    /// Kendra/Panapara/Apoklima strength (15, 30, or 60 virupas)
     public let kendradiBala: Double
-    /// Decanate strength (0 or 15 virupas)
     public let drekkanaBala: Double
 
-    /// Total Sthana Bala
     public var sthanaBala: Double {
         uchchaBala + saptavargajaBala + ojhayugmarasiBala + kendradiBala + drekkanaBala
     }
 
     // MARK: - 2. Dig Bala (Directional Strength)
-    /// Directional strength (0–60 virupas)
     public let digBala: Double
 
-    // MARK: - 3. Kala Bala (Temporal Strength — partial)
-    /// Natural strength — fixed per planet (8.57–60 virupas)
-    public let naisargikaBala: Double
-    /// Paksha Bala — lunar phase strength (0–60 virupas)
+    // MARK: - 3. Kala Bala (Temporal Strength)
+    // NOTE: Naisargika Bala is NOT part of Kala Bala per BPHS — it's a separate 6th component.
     public let pakshaBala: Double
-    // TODO: Natonnata, Tribhaga, Abda/Masa/Vara/Hora (need sunrise/sunset)
+    public let natonnathaBala: Double
+    public let tribhagaBala: Double
+    public let abdaBala: Double
+    public let masaBala: Double
+    public let varaBala: Double
+    public let horaBala: Double
+    public let ayanaBala: Double
 
-    /// Total Kala Bala (computed components only)
     public var kalaBala: Double {
-        naisargikaBala + pakshaBala
+        pakshaBala + natonnathaBala + tribhagaBala
+        + abdaBala + masaBala + varaBala + horaBala + ayanaBala
     }
 
-    // MARK: - 4–6. Uncomputed (need additional data)
-    // Cheshta Bala (motional), Ayana Bala (declination), Drig Bala (aspectual)
-    // Marked 0 until sunrise/sunset + tropical longitudes available
+    // MARK: - 4. Cheshta Bala (Motional Strength)
+    // Sun's Cheshta = Ayana Bala, Moon's Cheshta = Paksha Bala (reused values)
+    public let cheshtaBala: Double
 
-    /// Total Shadbala (sum of all computed components)
+    // MARK: - 5. Naisargika Bala (Natural Strength) — separate 6th component
+    public let naisargikaBala: Double
+
+    // MARK: - 6. Drik Bala (Aspectual Strength)
+    public let drikBala: Double
+
+    // MARK: - Totals
+
+    /// Total = Sthana + Dig + Kala + Cheshta + Naisargika + Drik (six-fold)
     public var totalVirupas: Double {
-        sthanaBala + digBala + kalaBala
+        sthanaBala + digBala + kalaBala + cheshtaBala + naisargikaBala + drikBala
     }
 
-    /// Total in rupas (1 rupa = 60 virupas)
     public var totalRupas: Double {
         totalVirupas / 60.0
+    }
+
+    // MARK: - Ishta / Kashta Phala
+
+    public var ishtaPhala: Double {
+        sqrt(max(0, uchchaBala) * max(0, cheshtaBala))
+    }
+
+    public var kashtaPhala: Double {
+        sqrt(max(0, 60.0 - uchchaBala) * max(0, 60.0 - cheshtaBala))
     }
 
     // MARK: - Codable
 
     private enum CodingKeys: String, CodingKey {
         case planet, uchchaBala, saptavargajaBala, ojhayugmarasiBala
-        case kendradiBala, drekkanaBala, digBala, naisargikaBala, pakshaBala
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(planet, forKey: .planet)
-        try container.encode(uchchaBala, forKey: .uchchaBala)
-        try container.encode(saptavargajaBala, forKey: .saptavargajaBala)
-        try container.encode(ojhayugmarasiBala, forKey: .ojhayugmarasiBala)
-        try container.encode(kendradiBala, forKey: .kendradiBala)
-        try container.encode(drekkanaBala, forKey: .drekkanaBala)
-        try container.encode(digBala, forKey: .digBala)
-        try container.encode(naisargikaBala, forKey: .naisargikaBala)
-        try container.encode(pakshaBala, forKey: .pakshaBala)
+        case kendradiBala, drekkanaBala, digBala, pakshaBala
+        case natonnathaBala, tribhagaBala, abdaBala, masaBala, varaBala, horaBala
+        case ayanaBala, cheshtaBala, naisargikaBala, drikBala
     }
 }
 
 /// Complete Shadbala results for all planets.
 public struct ShadBalaResult: Codable, Sendable {
-    /// Per-planet Shadbala breakdown
     public let planetBala: [Planet: PlanetShadBala]
 
     /// Minimum required rupas for each planet (BPHS standard)
@@ -83,19 +85,16 @@ public struct ShadBalaResult: Codable, Sendable {
         .mercury: 7.0, .jupiter: 6.5, .venus: 5.5, .saturn: 5.0
     ]
 
-    /// Check if a planet meets its minimum Shadbala requirement
     public func meetsMinimum(_ planet: Planet) -> Bool? {
         guard let bala = planetBala[planet],
               let min = Self.minimumRupas[planet] else { return nil }
         return bala.totalRupas >= min
     }
 
-    /// Strongest planet by total virupas
     public var strongest: Planet? {
         planetBala.max(by: { $0.value.totalVirupas < $1.value.totalVirupas })?.key
     }
 
-    /// Weakest planet by total virupas
     public var weakest: Planet? {
         planetBala.min(by: { $0.value.totalVirupas < $1.value.totalVirupas })?.key
     }
