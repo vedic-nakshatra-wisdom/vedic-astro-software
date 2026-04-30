@@ -15,6 +15,8 @@ enum ChartSection: String, CaseIterable, Identifiable {
     case jaimini = "Jaimini System"
     case transits = "Current Transits"
     case specialPoints = "Special Points"
+    case gemstone = "Gemstone"
+    case moonTithi = "Moon Tithi"
 
     var id: String { rawValue }
 
@@ -30,6 +32,8 @@ enum ChartSection: String, CaseIterable, Identifiable {
         case .jaimini: return "person.3"
         case .transits: return "arrow.triangle.2.circlepath"
         case .specialPoints: return "mappin.and.ellipse"
+        case .gemstone: return "diamond"
+        case .moonTithi: return "moon.stars"
         }
     }
 }
@@ -178,6 +182,7 @@ final class ChartViewModel {
     var bhriguBindu: BhriguBinduResult?
     var pushkara: PushkaraResult?
     var bhavaChalit: BhavaChalitResult?
+    var gemstoneResult: GemstoneResult?
     var chartExport: ChartExport?
 
     // MARK: - Validation
@@ -311,6 +316,17 @@ final class ChartViewModel {
                 computedIshta = IshtaDevtaCalculator().compute(from: computedChart, karakas: k)
             }
 
+            // Gemstone recommendation
+            let navamsa = allVargas[.d9]
+            let computedGemstone = GemstoneRecommender().recommend(
+                chart: computedChart,
+                shadbala: computedShadbala,
+                ashtakavarga: computedAshtakavarga,
+                navamsa: navamsa,
+                dashas: computedDashas,
+                karakas: computedKarakas
+            )
+
             // Build export
             let exporter = ChartExporter()
             let export = exporter.buildExport(
@@ -324,7 +340,8 @@ final class ChartViewModel {
                 arudhaLagna: computedArudha,
                 bhriguBindu: computedBB,
                 pushkara: computedPushkara,
-                bhavaChalit: computedBhavaChalit
+                bhavaChalit: computedBhavaChalit,
+                gemstone: computedGemstone
             )
 
             // Update state
@@ -339,6 +356,7 @@ final class ChartViewModel {
             self.bhriguBindu = computedBB
             self.pushkara = computedPushkara
             self.bhavaChalit = computedBhavaChalit
+            self.gemstoneResult = computedGemstone
             self.chartExport = export
             self.hasCalculated = true
             if self.loadedProfileID == nil {
@@ -745,6 +763,7 @@ final class ChartViewModel {
         bhriguBindu = nil
         pushkara = nil
         bhavaChalit = nil
+        gemstoneResult = nil
         chartExport = nil
         hasCalculated = false
         statusMessage = ""

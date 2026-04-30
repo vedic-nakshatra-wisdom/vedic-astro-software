@@ -303,6 +303,10 @@ struct ContentView: View {
             TransitView(viewModel: viewModel)
         case .specialPoints:
             SpecialPointsView(viewModel: viewModel)
+        case .gemstone:
+            GemstoneView(viewModel: viewModel)
+        case .moonTithi:
+            MoonTithiView(viewModel: viewModel)
         }
     }
 

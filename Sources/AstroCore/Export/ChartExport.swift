@@ -38,6 +38,9 @@ public struct ChartExport: Codable, Sendable {
     // --- Section 9: Special Points ---
     public let specialPoints: SpecialPointsExport?
 
+    // --- Section 10: Gemstone ---
+    public let gemstone: GemstoneResult?
+
     // MARK: - Coding Keys (controls JSON field order)
 
     enum CodingKeys: String, CodingKey {
@@ -51,6 +54,7 @@ public struct ChartExport: Codable, Sendable {
         case shadbala
         case jaimini
         case specialPoints
+        case gemstone
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -65,6 +69,7 @@ public struct ChartExport: Codable, Sendable {
         try container.encodeIfPresent(shadbala, forKey: .shadbala)
         try container.encodeIfPresent(jaimini, forKey: .jaimini)
         try container.encodeIfPresent(specialPoints, forKey: .specialPoints)
+        try container.encodeIfPresent(gemstone, forKey: .gemstone)
     }
 }
 

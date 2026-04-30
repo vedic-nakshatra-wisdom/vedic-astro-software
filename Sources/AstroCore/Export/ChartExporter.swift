@@ -18,6 +18,7 @@ public struct ChartExporter: Sendable {
         bhriguBindu: BhriguBinduResult? = nil,
         pushkara: PushkaraResult? = nil,
         bhavaChalit: BhavaChalitResult? = nil,
+        gemstone: GemstoneResult? = nil,
         currentDate: Date = Date()
     ) -> ChartExport {
 
@@ -206,7 +207,8 @@ public struct ChartExporter: Sendable {
             ashtakavarga: ashtakavarga,
             shadbala: shadbala,
             jaimini: jaiminiExport,
-            specialPoints: specialExport
+            specialPoints: specialExport,
+            gemstone: gemstone
         )
     }
 

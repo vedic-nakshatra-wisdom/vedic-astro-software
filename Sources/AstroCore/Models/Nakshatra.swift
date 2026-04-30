@@ -96,4 +96,133 @@ public enum Nakshatra: Int, Codable, Sendable, CaseIterable, Hashable {
         let posInNak = lon - Double(nakIndex) * span
         return posInNak / span
     }
+
+    // MARK: - Gana
+
+    public var gana: Gana {
+        switch self {
+        case .ashwini, .mrigashira, .punarvasu, .pushya, .hasta, .swati, .anuradha, .shravana, .revati:
+            return .deva
+        case .bharani, .rohini, .ardra, .purvaPhalguni, .uttaraPhalguni, .purvaAshadha, .uttaraAshadha, .purvaBhadrapada, .uttaraBhadrapada:
+            return .manushya
+        case .krittika, .ashlesha, .magha, .chitra, .vishakha, .jyeshtha, .mula, .dhanishtha, .shatabhisha:
+            return .rakshasa
+        }
+    }
+
+    // MARK: - Yoni
+
+    public var yoni: (animal: YoniAnimal, gender: YoniGender) {
+        switch self {
+        case .ashwini:          return (.horse, .male)
+        case .bharani:          return (.elephant, .male)
+        case .krittika:         return (.sheep, .female)
+        case .rohini:           return (.serpent, .male)
+        case .mrigashira:       return (.serpent, .female)
+        case .ardra:            return (.dog, .female)
+        case .punarvasu:        return (.cat, .female)
+        case .pushya:           return (.sheep, .male)
+        case .ashlesha:         return (.cat, .male)
+        case .magha:            return (.rat, .male)
+        case .purvaPhalguni:    return (.rat, .female)
+        case .uttaraPhalguni:   return (.cow, .male)
+        case .hasta:            return (.buffalo, .male)
+        case .chitra:           return (.tiger, .female)
+        case .swati:            return (.buffalo, .female)
+        case .vishakha:         return (.tiger, .male)
+        case .anuradha:         return (.deer, .female)
+        case .jyeshtha:         return (.deer, .male)
+        case .mula:             return (.dog, .male)
+        case .purvaAshadha:     return (.monkey, .male)
+        case .uttaraAshadha:    return (.mongoose, .male)
+        case .shravana:         return (.monkey, .female)
+        case .dhanishtha:       return (.lion, .female)
+        case .shatabhisha:      return (.horse, .female)
+        case .purvaBhadrapada:  return (.lion, .male)
+        case .uttaraBhadrapada: return (.cow, .female)
+        case .revati:           return (.elephant, .female)
+        }
+    }
+
+    // MARK: - Nadi
+
+    public var nadi: Nadi {
+        switch self {
+        case .ashwini, .ardra, .punarvasu, .uttaraPhalguni, .hasta, .jyeshtha, .mula, .shatabhisha, .purvaBhadrapada:
+            return .adi
+        case .bharani, .mrigashira, .pushya, .purvaPhalguni, .chitra, .anuradha, .purvaAshadha, .dhanishtha, .uttaraBhadrapada:
+            return .madhya
+        case .krittika, .rohini, .ashlesha, .magha, .swati, .vishakha, .uttaraAshadha, .shravana, .revati:
+            return .antya
+        }
+    }
+
+    /// Compute the Tara (birth star compatibility group, 1-9) from a birth nakshatra
+    public func tara(from birthNakshatra: Nakshatra) -> Tara {
+        let diff = ((self.rawValue - birthNakshatra.rawValue) + 27) % 27
+        let taraNum = (diff % 9) + 1
+        return Tara(rawValue: taraNum)!
+    }
+}
+
+// MARK: - Nakshatra Attribute Enums
+
+public enum Gana: String, Codable, Sendable {
+    case deva = "Deva"
+    case manushya = "Manushya"
+    case rakshasa = "Rakshasa"
+}
+
+public enum YoniAnimal: String, Codable, Sendable {
+    case horse = "Horse"
+    case elephant = "Elephant"
+    case sheep = "Sheep"
+    case serpent = "Serpent"
+    case dog = "Dog"
+    case cat = "Cat"
+    case rat = "Rat"
+    case cow = "Cow"
+    case buffalo = "Buffalo"
+    case tiger = "Tiger"
+    case deer = "Deer"
+    case monkey = "Monkey"
+    case mongoose = "Mongoose"
+    case lion = "Lion"
+}
+
+public enum YoniGender: String, Codable, Sendable {
+    case male = "Male"
+    case female = "Female"
+}
+
+public enum Nadi: String, Codable, Sendable {
+    case adi = "Adi (Vata)"
+    case madhya = "Madhya (Pitta)"
+    case antya = "Antya (Kapha)"
+}
+
+public enum Tara: Int, Codable, Sendable {
+    case janma = 1
+    case sampat = 2
+    case vipat = 3
+    case kshema = 4
+    case pratyari = 5
+    case sadhaka = 6
+    case vadha = 7
+    case mitra = 8
+    case atiMitra = 9
+
+    public var name: String {
+        switch self {
+        case .janma:    return "Janma"
+        case .sampat:   return "Sampat"
+        case .vipat:    return "Vipat"
+        case .kshema:   return "Kshema"
+        case .pratyari: return "Pratyari"
+        case .sadhaka:  return "Sadhaka"
+        case .vadha:    return "Vadha"
+        case .mitra:    return "Mitra"
+        case .atiMitra: return "Ati Mitra"
+        }
+    }
 }

@@ -100,6 +100,45 @@ public enum Sign: Int, Codable, Sendable, CaseIterable, Hashable {
         guard let exSign = exaltationSign(of: planet) else { return nil }
         return Sign(rawValue: (exSign.rawValue + 6) % 12)
     }
+
+    // MARK: - Varna
+
+    public var varna: Varna {
+        switch self {
+        case .cancer, .scorpio, .pisces:       return .brahmin
+        case .aries, .leo, .sagittarius:       return .kshatriya
+        case .taurus, .virgo, .capricorn:      return .vaishya
+        case .gemini, .libra, .aquarius:       return .shudra
+        }
+    }
+
+    // MARK: - Vashya
+
+    /// Vashya category. For Sagittarius and Capricorn which span two categories,
+    /// use `vashya(degreeInSign:)` for precision.
+    public var vashya: Vashya {
+        switch self {
+        case .aries, .taurus:       return .chatushpada
+        case .gemini, .virgo, .libra, .aquarius: return .manava
+        case .cancer, .pisces:      return .jalachara
+        case .leo:                  return .vanachara
+        case .scorpio:              return .keeta
+        case .sagittarius:          return .manava      // 1st half default
+        case .capricorn:            return .chatushpada  // 1st half default
+        }
+    }
+
+    /// Vashya with degree precision for dual-category signs (Sagittarius, Capricorn)
+    public func vashya(degreeInSign: Double) -> Vashya {
+        switch self {
+        case .sagittarius:
+            return degreeInSign < 15.0 ? .manava : .chatushpada
+        case .capricorn:
+            return degreeInSign < 15.0 ? .chatushpada : .jalachara
+        default:
+            return self.vashya
+        }
+    }
 }
 
 // MARK: - Supporting Enums
@@ -110,4 +149,19 @@ public enum Element: Int, Codable, Sendable {
 
 public enum Quality: Int, Codable, Sendable {
     case movable = 0, fixed, dual
+}
+
+public enum Varna: String, Codable, Sendable {
+    case brahmin = "Brahmin"
+    case kshatriya = "Kshatriya"
+    case vaishya = "Vaishya"
+    case shudra = "Shudra"
+}
+
+public enum Vashya: String, Codable, Sendable {
+    case chatushpada = "Chatushpada"
+    case manava = "Manava"
+    case jalachara = "Jalachara"
+    case vanachara = "Vanachara"
+    case keeta = "Keeta"
 }

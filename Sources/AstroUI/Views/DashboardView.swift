@@ -7,92 +7,59 @@ struct DashboardView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // Header with name and basic info
                 headerSection
 
-                // Quick overview cards in a grid
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                    // Card 1: Ascendant info
+                // Key Positions — 3-column row
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 12) {
                     if let asc = viewModel.chart?.ascendant {
-                        infoCard(
-                            title: "Ascendant (Lagna)",
-                            icon: "sunrise",
-                            content: asc.sign.name,
-                            detail: asc.formattedDegree,
-                            color: .orange
-                        )
+                        infoCard(title: "Lagna", icon: "sunrise",
+                                 content: asc.sign.name, detail: asc.formattedDegree, color: .orange)
                     }
-
-                    // Card 2: Moon sign
                     if let moon = viewModel.chart?.position(of: .moon) {
-                        infoCard(
-                            title: "Moon Sign (Rasi)",
-                            icon: "moon.fill",
-                            content: moon.sign.name,
-                            detail: "\(moon.nakshatra.name) Pada \(moon.nakshatraPada)",
-                            color: .blue
-                        )
+                        infoCard(title: "Moon", icon: "moon.fill",
+                                 content: moon.sign.name,
+                                 detail: "\(moon.nakshatra.name) P\(moon.nakshatraPada)", color: .blue)
                     }
-
-                    // Card 3: Sun sign
                     if let sun = viewModel.chart?.position(of: .sun) {
-                        infoCard(
-                            title: "Sun Sign",
-                            icon: "sun.max.fill",
-                            content: sun.sign.name,
-                            detail: sun.formattedDegree,
-                            color: .yellow
-                        )
-                    }
-
-                    // Card 4: Current Dasha
-                    if let path = viewModel.currentDashaPath, !path.isEmpty {
-                        let dashaStr = path.map { $0.planet.rawValue }.joined(separator: " / ")
-                        infoCard(
-                            title: "Current Dasha",
-                            icon: "calendar.badge.clock",
-                            content: dashaStr,
-                            detail: "Until \(formatted(path.last!.endDate))",
-                            color: .purple
-                        )
-                    }
-
-                    // Card 5: Atmakaraka
-                    if let karakas = viewModel.karakas {
-                        let ak = karakas.ranking.first
-                        infoCard(
-                            title: "Atmakaraka",
-                            icon: "person.fill",
-                            content: ak?.planet.rawValue ?? "—",
-                            detail: "Soul significator",
-                            color: .indigo
-                        )
-                    }
-
-                    // Card 6: Ishta Devta
-                    if let ishta = viewModel.ishtaDevta {
-                        infoCard(
-                            title: "Ishta Devta",
-                            icon: "sparkles",
-                            content: ishta.deity.primary,
-                            detail: "via \(ishta.significator.rawValue)",
-                            color: .pink
-                        )
-                    }
-
-                    // Card 7: Bhrigu Bindu
-                    if let bb = viewModel.bhriguBindu {
-                        infoCard(
-                            title: "Bhrigu Bindu",
-                            icon: "mappin.and.ellipse",
-                            content: bb.formattedPosition,
-                            detail: bb.savScore.map { "SAV: \($0)" } ?? "",
-                            color: .teal
-                        )
+                        infoCard(title: "Sun", icon: "sun.max.fill",
+                                 content: sun.sign.name, detail: sun.formattedDegree, color: .yellow)
                     }
                 }
 
-                // Planet positions quick table
+                // Jaimini & Special — 3-column row
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 12) {
+                    if let karakas = viewModel.karakas, let ak = karakas.ranking.first {
+                        infoCard(title: "Atmakaraka", icon: "person.fill",
+                                 content: ak.planet.rawValue, detail: "Soul significator", color: .indigo)
+                    }
+                    if let ishta = viewModel.ishtaDevta {
+                        infoCard(title: "Ishta Devta", icon: "sparkles",
+                                 content: ishta.deity.primary,
+                                 detail: "via \(ishta.significator.rawValue)", color: .pink)
+                    }
+                    if let bb = viewModel.bhriguBindu {
+                        infoCard(title: "Bhrigu Bindu", icon: "mappin.and.ellipse",
+                                 content: bb.formattedPosition,
+                                 detail: bb.savScore.map { "SAV: \($0)" } ?? "", color: .mint)
+                    }
+                }
+
+                // Current Dasha + Gemstone — side by side
+                HStack(alignment: .top, spacing: 12) {
+                    if let path = viewModel.currentDashaPath, !path.isEmpty {
+                        dashaCard(path: path)
+                    }
+                    if let gem = viewModel.gemstoneResult {
+                        gemstoneCard(gem)
+                    }
+                }
+
+                // Compatibility Factors
+                if let moon = viewModel.chart?.position(of: .moon) {
+                    compatibilityCard(moon: moon)
+                }
+
+                // Planet positions table
                 if let chart = viewModel.chart {
                     planetQuickTable(chart: chart)
                 }
@@ -109,8 +76,6 @@ struct DashboardView: View {
             Text(viewModel.name)
                 .font(.largeTitle.bold())
             if let chart = viewModel.chart {
-                let df = DateFormatter()
-                // This is a computed property inline for display
                 Text(birthInfo(chart))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -151,6 +116,144 @@ struct DashboardView: View {
         .padding(16)
         .background(.background.secondary)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - Dasha Card
+
+    private func dashaCard(path: [DashaPeriod]) -> some View {
+        HStack(spacing: 16) {
+            Image(systemName: "calendar.badge.clock")
+                .font(.title2)
+                .foregroundStyle(.purple)
+                .frame(width: 40)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Current Dasha")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    ForEach(Array(path.enumerated()), id: \.offset) { index, period in
+                        if index > 0 {
+                            Image(systemName: "chevron.right")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                        Text(period.planet.rawValue)
+                            .font(index == 0 ? .title3.bold() : .subheadline.weight(.medium))
+                            .foregroundStyle(index == 0 ? .primary : .secondary)
+                    }
+                }
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 4) {
+                Text("Until")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                Text(formatted(path.last!.endDate))
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.purple)
+            }
+        }
+        .padding(16)
+        .background(.background.secondary)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - Gemstone Card
+
+    private func gemstoneCard(_ gem: GemstoneResult) -> some View {
+        HStack(spacing: 16) {
+            Image(systemName: "diamond")
+                .font(.title2)
+                .foregroundStyle(.teal)
+                .frame(width: 40)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Recommended Gemstone")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    Text(gem.gemstone.name)
+                        .font(.title3.bold())
+                    Text(gem.gemstone.sanskritName)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 4) {
+                Text("\(gem.confidence)%")
+                    .font(.headline.monospacedDigit())
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(gem.confidence >= 75 ? .green : gem.confidence >= 50 ? .orange : .red)
+                    .clipShape(Capsule())
+                Text("for \(gem.recommendedPlanet.rawValue)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(16)
+        .background(.background.secondary)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - Compatibility Factors
+
+    private func compatibilityCard(moon: PlanetaryPosition) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "person.2.fill")
+                    .foregroundStyle(.secondary)
+                Text("Compatibility Factors")
+                    .font(.headline)
+            }
+
+            VStack(spacing: 0) {
+                factorRow(icon: "person.3.fill", label: "Gana",
+                          value: moon.nakshatra.gana.rawValue.capitalized, color: .mint)
+                Divider().padding(.leading, 40)
+                factorRow(icon: "pawprint.fill", label: "Yoni",
+                          value: "\(moon.nakshatra.yoni.animal.rawValue.capitalized) (\(moon.nakshatra.yoni.gender.rawValue.capitalized))", color: .cyan)
+                Divider().padding(.leading, 40)
+                factorRow(icon: "waveform.path", label: "Nadi",
+                          value: moon.nakshatra.nadi.rawValue.capitalized, color: .green)
+                Divider().padding(.leading, 40)
+                factorRow(icon: "shield.fill", label: "Varna",
+                          value: moon.sign.varna.rawValue.capitalized, color: .brown)
+                Divider().padding(.leading, 40)
+                factorRow(icon: "hand.raised.fill", label: "Vashya",
+                          value: moon.sign.vashya(degreeInSign: moon.degreeInSign).rawValue.capitalized, color: .gray)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(.background.secondary)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func factorRow(icon: String, label: String, value: String, color: Color) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .foregroundStyle(color)
+                .frame(width: 24)
+            Text(label)
+                .font(.subheadline.bold())
+                .frame(width: 60, alignment: .leading)
+            Spacer()
+            Text(value)
+                .font(.subheadline.weight(.medium))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(color.opacity(0.12))
+                .clipShape(Capsule())
+        }
+        .padding(.vertical, 6)
     }
 
     // MARK: - Planet Quick Table
