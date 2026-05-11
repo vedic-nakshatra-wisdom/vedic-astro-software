@@ -103,13 +103,28 @@ public enum Tithi: Int, Codable, Sendable, CaseIterable {
     }
 }
 
+// MARK: - Tithi Segment (one tithi period within a day)
+
+public struct TithiSegment: Sendable {
+    public let tithi: Tithi
+    public let endDate: Date?          // when this tithi ends, nil if extends beyond this day
+    public let endsAfterMidnight: Bool  // "+" suffix — end time is after midnight
+
+    public init(tithi: Tithi, endDate: Date?, endsAfterMidnight: Bool) {
+        self.tithi = tithi
+        self.endDate = endDate
+        self.endsAfterMidnight = endsAfterMidnight
+    }
+}
+
 // MARK: - Day Tithi Info
 
 public struct DayTithiInfo: Sendable {
     public let date: Date
     public let dayOfMonth: Int
-    public let tithi: Tithi
+    public let tithi: Tithi            // primary tithi at sunrise
     public let nextTithi: Tithi
+    public let segments: [TithiSegment] // all tithi segments within this day
     public let moonSign: Sign
     public let moonSignSanskrit: String
     public let moonNakshatra: String
@@ -122,6 +137,7 @@ public struct DayTithiInfo: Sendable {
     public let sunSign: Sign
 
     public init(date: Date, dayOfMonth: Int, tithi: Tithi, nextTithi: Tithi,
+                segments: [TithiSegment],
                 moonSign: Sign, moonSignSanskrit: String, moonNakshatra: String,
                 sunMoonAngle: Double, tithiProgress: Double, tithiEndDate: Date?,
                 karana: String, yoga: String, moonLongitude: Double, sunSign: Sign) {
@@ -129,6 +145,7 @@ public struct DayTithiInfo: Sendable {
         self.dayOfMonth = dayOfMonth
         self.tithi = tithi
         self.nextTithi = nextTithi
+        self.segments = segments
         self.moonSign = moonSign
         self.moonSignSanskrit = moonSignSanskrit
         self.moonNakshatra = moonNakshatra

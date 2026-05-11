@@ -115,12 +115,15 @@ struct TransitView: View {
 
             // Transit planets
             if !transitPlanets.isEmpty {
+                let maxPerRow = isKendra ? 4 : 2
+                let fontSize: CGFloat = (!isKendra && transitPlanets.count >= 3) ? 9 : 11
+
                 VStack(spacing: 1) {
-                    ForEach(transitPlanetRows(transitPlanets, maxPerRow: isKendra ? 4 : 3), id: \.self) { row in
+                    ForEach(transitPlanetRows(transitPlanets, maxPerRow: maxPerRow), id: \.self) { row in
                         HStack(spacing: 3) {
                             ForEach(row, id: \.self) { planet in
                                 Text(planetAbbrev(planet))
-                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                    .font(.system(size: fontSize, weight: .bold, design: .monospaced))
                                     .foregroundStyle(planetColor(planet))
                             }
                         }
@@ -503,11 +506,11 @@ struct TransitView: View {
     }
 
     private func houseFrameWidth(_ house: Int, size: CGFloat) -> CGFloat {
-        [1, 4, 7, 10].contains(house) ? size * 0.30 : size * 0.20
+        [1, 4, 7, 10].contains(house) ? size * 0.30 : size * 0.24
     }
 
     private func houseFrameHeight(_ house: Int, size: CGFloat) -> CGFloat {
-        [1, 4, 7, 10].contains(house) ? size * 0.24 : size * 0.16
+        [1, 4, 7, 10].contains(house) ? size * 0.24 : size * 0.20
     }
 
     private func transitPlanetRows(_ planets: [Planet], maxPerRow: Int) -> [[Planet]] {

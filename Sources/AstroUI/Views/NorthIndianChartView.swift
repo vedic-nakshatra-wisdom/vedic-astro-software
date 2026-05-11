@@ -128,12 +128,15 @@ struct NorthIndianChartView: View {
     }
 
     private func planetLabel(_ planets: [Planet], isKendra: Bool) -> some View {
-        VStack(spacing: 1) {
-            ForEach(planetRows(planets, maxPerRow: isKendra ? 4 : 3), id: \.self) { row in
+        let maxPerRow = isKendra ? 4 : 2
+        let fontSize: CGFloat = (!isKendra && planets.count >= 3) ? 9 : 11
+
+        return VStack(spacing: 1) {
+            ForEach(planetRows(planets, maxPerRow: maxPerRow), id: \.self) { row in
                 HStack(spacing: 3) {
                     ForEach(row, id: \.self) { planet in
                         Text(planetAbbrev(planet))
-                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .font(.system(size: fontSize, weight: .bold, design: .monospaced))
                             .foregroundStyle(planetColor(planet))
                     }
                 }
@@ -221,12 +224,12 @@ struct NorthIndianChartView: View {
 
     private func houseFrameWidth(_ house: Int) -> CGFloat {
         let isKendra = [1, 4, 7, 10].contains(house)
-        return isKendra ? size * 0.30 : size * 0.20
+        return isKendra ? size * 0.30 : size * 0.24
     }
 
     private func houseFrameHeight(_ house: Int) -> CGFloat {
         let isKendra = [1, 4, 7, 10].contains(house)
-        return isKendra ? size * 0.24 : size * 0.16
+        return isKendra ? size * 0.24 : size * 0.20
     }
 
     // MARK: - Colors

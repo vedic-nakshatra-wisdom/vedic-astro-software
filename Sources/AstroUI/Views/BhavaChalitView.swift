@@ -77,13 +77,16 @@ struct BhavaChalitView: View {
                 .foregroundStyle(signColor(sign))
 
             if !planets.isEmpty {
+                let maxPerRow = isKendra ? 4 : 2
+                let fontSize: CGFloat = (!isKendra && planets.count >= 3) ? 9 : 11
+
                 VStack(spacing: 1) {
-                    ForEach(planetRows(planets, maxPerRow: isKendra ? 4 : 3), id: \.self) { row in
+                    ForEach(planetRows(planets, maxPerRow: maxPerRow), id: \.self) { row in
                         HStack(spacing: 3) {
                             ForEach(row, id: \.self) { planet in
                                 let shifted = chalit.hasShifted(planet: planet, rasiHouse: chart.house(of: planet))
                                 Text(abbrev(planet))
-                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                    .font(.system(size: fontSize, weight: .bold, design: .monospaced))
                                     .foregroundStyle(planetColor(planet))
                                     .underline(shifted, color: .red)
                             }
@@ -296,11 +299,11 @@ struct BhavaChalitView: View {
     }
 
     private func houseFrameWidth(_ house: Int, size: CGFloat) -> CGFloat {
-        [1, 4, 7, 10].contains(house) ? size * 0.30 : size * 0.20
+        [1, 4, 7, 10].contains(house) ? size * 0.30 : size * 0.24
     }
 
     private func houseFrameHeight(_ house: Int, size: CGFloat) -> CGFloat {
-        [1, 4, 7, 10].contains(house) ? size * 0.24 : size * 0.16
+        [1, 4, 7, 10].contains(house) ? size * 0.24 : size * 0.20
     }
 
     private func signColor(_ sign: Sign?) -> Color {

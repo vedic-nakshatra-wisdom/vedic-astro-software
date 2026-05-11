@@ -114,9 +114,9 @@ struct MoonTithiView: View {
             let emptyCells = (data.firstWeekday - 1)
 
             LazyVGrid(columns: gridColumns, spacing: 4) {
-                ForEach(0..<emptyCells, id: \.self) { _ in
+                ForEach((-emptyCells)..<0, id: \.self) { _ in
                     Color.clear
-                        .frame(height: 110)
+                        .frame(height: 120)
                 }
 
                 ForEach(data.days, id: \.dayOfMonth) { dayInfo in
@@ -148,7 +148,7 @@ struct MoonTithiView: View {
         let isSelected = selectedDay?.dayOfMonth == info.dayOfMonth
         let isShukla = info.tithi.paksha == .shukla
 
-        return VStack(alignment: .leading, spacing: 3) {
+        return VStack(alignment: .leading, spacing: 2) {
             // Row 1: Date + Tithi day badge
             HStack {
                 Text("\(info.dayOfMonth)")
@@ -172,39 +172,43 @@ struct MoonTithiView: View {
             HStack {
                 Spacer()
                 Image(systemName: info.tithi.moonPhaseIcon)
-                    .font(.system(size: 18))
+                    .font(.system(size: 20))
                     .foregroundStyle(isShukla ? .yellow : .indigo)
                 Spacer()
             }
 
-            // Row 3: Tithi name
-            Text(info.tithi.name)
-                .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(isShukla ? .orange : .purple)
-                .lineLimit(1)
+            Spacer(minLength: 0)
 
-            // Row 4: Transition time label
-            if let endDate = info.tithiEndDate {
-                HStack(spacing: 2) {
-                    Image(systemName: "arrow.right.circle.fill")
-                        .font(.system(size: 7))
-                        .foregroundStyle(.tertiary)
-                    Text(tithiTimeFormatter.string(from: endDate))
-                        .font(.system(size: 8))
-                        .foregroundStyle(.secondary)
+            // Row 3: Tithi segments
+            ForEach(Array(info.segments.enumerated()), id: \.offset) { _, segment in
+                if let endDate = segment.endDate {
+                    // Tithi ends during this day — show "Name - HH:MM[+]"
+                    Text("\(segment.tithi.name) - \(segmentTimeString(endDate))\(segment.endsAfterMidnight ? "+" : "")")
+                        .font(.system(size: 8, weight: .medium))
+                        .foregroundStyle(segment.tithi.paksha == .shukla ? .orange : .purple)
+                        .lineLimit(1)
+                } else {
+                    // Tithi extends beyond this day — just show name
+                    Text(segment.tithi.name)
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(segment.tithi.paksha == .shukla ? .orange : .purple)
+                        .lineLimit(1)
                 }
-                .lineLimit(1)
             }
 
-            // Row 5: Moon Rashi (Sanskrit)
-            Text(info.moonSignSanskrit)
-                .font(.system(size: 9, weight: .medium))
-                .foregroundStyle(.teal)
-                .lineLimit(1)
+            // Row 4: Moon Rashi (Sanskrit)
+            HStack(spacing: 2) {
+                Image(systemName: "sun.min.fill")
+                    .font(.system(size: 7))
+                Text(info.moonSignSanskrit)
+                    .font(.system(size: 9, weight: .medium))
+            }
+            .foregroundStyle(.teal)
+            .lineLimit(1)
         }
         .padding(6)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(height: 110)
+        .frame(height: 120)
         .background(
             RoundedRectangle(cornerRadius: 8)
                 .fill(cellBackground(info, isToday: isToday))
@@ -414,11 +418,11 @@ struct MoonTithiView: View {
             && cal.component(.day, from: now) == info.dayOfMonth
     }
 
-    private var tithiTimeFormatter: DateFormatter {
+    private func segmentTimeString(_ date: Date) -> String {
         let f = DateFormatter()
-        f.dateFormat = "h:mm a"
+        f.dateFormat = "H:mm"
         f.timeZone = TimeZone(identifier: viewModel.timeZoneID) ?? .current
-        return f
+        return f.string(from: date)
     }
 
     private var monthYearString: String {
